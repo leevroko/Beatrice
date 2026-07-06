@@ -151,6 +151,12 @@ class MainScreen(Screen):
             self.app.exit()
 
     def action_save(self) -> None:
+        """Сохранить: сначала форму, потом граф на диск."""
+        # Сохранить форму текущего узла
+        form = self.query_one("#panel-center", NodeForm)
+        if form.dirty:
+            form._save_current_node()
+
         gm = self.app.graph_manager
         try:
             gm.save()
