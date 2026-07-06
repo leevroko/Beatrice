@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "beatrice"
+version = "0.1.0"
+description = "CLI и TUI для построения и редактирования графов знаний на NetworkX"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "leevroko", email = "leevroko@gmail.com"},
+]
+
+dependencies = [
+    "networkx",
+]
+
+[project.optional-dependencies]
+tui = [
+    "textual",
+    "rapidfuzz",
+]
+
+[project.scripts]
+beatrice = "beatrice.cli:main"
+beatrice-tui = "beatrice.tui.app:run_tui_cli"
+
+[tool.setuptools.packages.find]
+include = ["beatrice*"]

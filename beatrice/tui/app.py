@@ -457,3 +457,12 @@ def run_tui(graph_path: str) -> None:
 
     app = BeatriceApp(graph_path, gm)
     app.run()
+
+
+def run_tui_cli() -> None:
+    """Entry point для beatrice-tui."""
+    import sys
+    if len(sys.argv) < 2:
+        print("Использование: beatrice-tui <graph.json>", file=sys.stderr)
+        sys.exit(1)
+    run_tui(sys.argv[1])
