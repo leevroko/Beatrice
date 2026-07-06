@@ -207,9 +207,23 @@ beatrice stat graph.json
 
 Выводит: количество узлов, рёбер, плотность, сирот, Louvain-сообщества, PageRank топ-5.
 
----
+### `tui`
 
-## Формат данных
+```bash
+beatrice tui graph.json
+```
+
+Запускает Terminal UI для интерактивной работы с графом:
+
+- **Три панели:** список узлов (слева), форма редактирования (центр), список связей (справа)
+- **Vim-моты:** `hjkl` для навигации, `o` открыть, `s` поиск, `x` фильтр сирот
+- **Палитра команд** по `:` — фильтруемый список 16 команд
+- **Fuzzy-поиск** через rapidfuzz по id, label, type узлов
+- **Undo/Redo** через Ctrl+Z/Ctrl+Y (25 последних действий)
+- **Редактирование** узлов: label, type, description, color, size
+- **Управление связями:** добавить/удалить/редактировать через диалоги
+- **Help** по `?`, **темы** через `:theme dark|light`
+- Поддержка мыши
 
 Графы хранятся в JSON node-link — формате, который понимает NetworkX из коробки:
 
@@ -275,7 +289,7 @@ python3 beatrice/cli.py graph render graph.json --theme dark
 python3 -m pytest tests/ -v
 ```
 
-39 тестов: load/save, search, neighbors, orphans, add/remove node, add/remove edge, render, error handling.
+60 тестов: CLI (39) + TUI (21): load/save, CRUD, history, undo/redo, messages.
 
 ---
 
