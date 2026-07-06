@@ -1,0 +1,103 @@
+{
+  "directed": true,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "Kafka",
+      "type": "брокер",
+      "desc": "Распределённый event streaming",
+      "id": "Kafka"
+    },
+    {
+      "label": "ZooKeeper",
+      "type": "координатор",
+      "desc": "Управление кластером",
+      "id": "ZooKeeper"
+    },
+    {
+      "label": "Schema Registry",
+      "type": "сервис",
+      "desc": "Управление схемами данных",
+      "id": "SchemaRegistry"
+    },
+    {
+      "label": "Kafka Connect",
+      "type": "сервис",
+      "desc": "Интеграция с внешними системами",
+      "id": "KafkaConnect"
+    },
+    {
+      "label": "Kafka Streams",
+      "type": "библиотека",
+      "desc": "Stream processing",
+      "id": "KafkaStreams"
+    },
+    {
+      "label": "KRaft",
+      "type": "протокол",
+      "desc": "Raft-замена ZooKeeper",
+      "id": "KRaft"
+    },
+    {
+      "label": "Topic",
+      "type": "структура",
+      "desc": "Очередь сообщений",
+      "id": "Topic"
+    },
+    {
+      "label": "Consumer Group",
+      "type": "консьюмер",
+      "desc": "Группа консьюмеров",
+      "id": "ConsumerGroup"
+    },
+    {
+      "label": "Узел-сирота",
+      "type": "unknown",
+      "desc": "Не имеет связей",
+      "id": "OrphanNode"
+    }
+  ],
+  "edges": [
+    {
+      "relation": "использует",
+      "source": "Kafka",
+      "target": "ZooKeeper"
+    },
+    {
+      "relation": "интегрируется с",
+      "source": "Kafka",
+      "target": "SchemaRegistry"
+    },
+    {
+      "relation": "содержит",
+      "source": "Kafka",
+      "target": "Topic"
+    },
+    {
+      "relation": "переходит на",
+      "source": "Kafka",
+      "target": "KRaft"
+    },
+    {
+      "relation": "записывает в",
+      "source": "KafkaConnect",
+      "target": "Kafka"
+    },
+    {
+      "relation": "читает из",
+      "source": "KafkaStreams",
+      "target": "Kafka"
+    },
+    {
+      "relation": "заменяет",
+      "source": "KRaft",
+      "target": "ZooKeeper"
+    },
+    {
+      "relation": "читается",
+      "source": "Topic",
+      "target": "ConsumerGroup"
+    }
+  ]
+}

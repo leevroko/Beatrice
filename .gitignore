@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+*.swp
+*.swo
+*.html
+*.canvas
+*.graphml
+*.gexf
+demo_kafka_graph.json

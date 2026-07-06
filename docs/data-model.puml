@@ -1,0 +1,79 @@
+@startuml
+!theme plain
+skinparam linetype ortho
+skinparam backgroundColor #f8f8f8
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 13
+skinparam entity {
+  BackgroundColor #E8F0FE
+  BorderColor #1A73E8
+  FontColor #1A73E8
+}
+
+title Beatrice — Entity-Relationship Diagram
+
+entity "Graph\n(файл .json)" as Graph {
+  * directed : bool <<PK>>
+  --
+  multigraph : bool
+  graph[meta] : dict
+}
+
+entity "Node\n(узел)" as Node {
+  * id : string <<PK>>
+  --
+  label : string
+  type : string
+  desc : string
+  color : string
+  size : number
+  attributes : dict
+}
+
+entity "Edge\n(ребро)" as Edge {
+  * source : string <<FK>>
+  * target : string <<FK>>
+  --
+  relation : string
+  weight : number
+  attributes : dict
+}
+
+entity "Graph metadata\n(атрибуты графа)" as Meta {
+  name : string
+  description : string
+  version : string
+  created_at : string
+  custom : dict
+}
+
+Graph ||--o{ Node : "содержит"
+Graph ||--o{ Edge : "содержит"
+Node ||--o{ Edge : "источник (source)"
+Node ||--o{ Edge : "цель (target)"
+Graph ||--|| Meta : "включает"
+
+note right of Node
+  **Ограничения:**
+  - id уникален в рамках графа
+  - id не может быть пустым
+  - Любые доп. поля разрешены
+end note
+
+note right of Edge
+  **Ограничения:**
+  - source и target должны
+    существовать в nodes
+  - Дубликаты рёбер запрещены
+    (multigraph: false)
+  - Направление: source → target
+end note
+
+note right of Graph
+  **Формат хранения:**
+  JSON node-link (NetworkX native)
+  - nx.node_link_data()
+  - nx.node_link_graph()
+  - Всегда directed: true
+end note
+@enduml
