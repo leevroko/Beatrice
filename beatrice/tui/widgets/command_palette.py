@@ -9,7 +9,7 @@ from rapidfuzz import fuzz
 class CommandItem(ListItem):
     """Одна команда в списке."""
 
-    def __init__(self, name: str, description: str, handler: str) -> None:
+    def __init__(self, name: str, description: str, handler: str, **kwargs) -> None:
         self.command_name = name
         self.handler_key = handler
         super().__init__(
@@ -98,8 +98,8 @@ class CommandPalette(ModalScreen):
     }
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self._history: list[str] = []
         self._history_index = -1
 

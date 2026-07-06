@@ -95,8 +95,8 @@ class NodesList(Static):
     }
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self._all_items: list[dict] = []
         self._query = ""
         self._show_orphans = "any"

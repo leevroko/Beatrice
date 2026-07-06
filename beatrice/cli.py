@@ -12,6 +12,9 @@ import sys
 from pathlib import Path
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
+# Добавляем корень проекта в sys.path для импорта модулей
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import networkx as nx
 
 

@@ -11,21 +11,21 @@ from beatrice.tui.messages import NodeSelected, StatusMessage
 class SectionLabel(Static):
     """Заголовок секции."""
 
-    def __init__(self, text: str) -> None:
-        super().__init__(text)
+    def __init__(self, text: str, **kwargs) -> None:
+        super().__init__(text, **kwargs)
 
 
 class LinkRow(Static):
     """Одна строка связи — кликабельна."""
 
     def __init__(self, node_id: str, relation: str = "",
-                 direction: str = "out") -> None:
+                 direction: str = "out", **kwargs) -> None:
         self.node_id = node_id
         self.relation = relation
         self.direction = direction
         arrow = "→" if direction == "out" else "←"
         rel_part = f" [{relation}]" if relation else ""
-        super().__init__(f"  {arrow} {node_id}{rel_part}")
+        super().__init__(f"  {arrow} {node_id}{rel_part}", **kwargs)
 
 
 class AddLinkDialog(ModalScreen):
@@ -258,8 +258,8 @@ class LinksList(Static):
     }
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self._current_node: str | None = None
         self._out_links: list[tuple[str, dict]] = []
         self._in_links: list[tuple[str, dict]] = []
@@ -307,7 +307,7 @@ class LinksList(Static):
 
     def _selected_link(self) -> LinkRow | None:
         """Найти выбранный (сфокусированный) LinkRow."""
-        focused = self.focused
+        focused = self.app.focused
         if isinstance(focused, LinkRow):
             return focused
         # fallback: первый LinkRow

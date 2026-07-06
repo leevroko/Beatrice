@@ -18,12 +18,6 @@ def _color_block(hex_color: str) -> str:
 class NodeForm(Static):
     """Форма просмотра и редактирования атрибутов узла."""
 
-    BINDINGS = [
-        Binding("tab", "next_field", "Next field"),
-        Binding("shift+tab", "prev_field", "Prev field"),
-        Binding("escape", "cancel_edit", "Cancel"),
-    ]
-
     CSS = """
     NodeForm {
         height: 100%;
@@ -80,8 +74,8 @@ class NodeForm(Static):
     }
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self._current_node: str | None = None
         self._dirty: bool = False
         self._saved_attrs: dict = {}  # атрибуты на момент открытия
@@ -252,32 +246,6 @@ class NodeForm(Static):
         header.update("Node")
         self.post_message(NodeSaved(self._current_node))
         self.post_message(StatusMessage(f"Saved: {self._current_node}", "success"))
-
-    def action_next_field(self) -> None:
-        """Tab — фокус на следующее поле."""
-        inputs = list(self.query(Input)) + list(self.query(TextArea))
-        if not inputs:
-            return
-        focused = self.focused
-        if focused in inputs:
-            idx = inputs.index(focused)
-            next_idx = (idx + 1) % len(inputs)
-            inputs[next_idx].focus()
-        elif inputs:
-            inputs[0].focus()
-
-    def action_prev_field(self) -> None:
-        """Shift+Tab — фокус на предыдущее поле."""
-        inputs = list(self.query(Input)) + list(self.query(TextArea))
-        if not inputs:
-            return
-        focused = self.focused
-        if focused in inputs:
-            idx = inputs.index(focused)
-            prev_idx = (idx - 1) % len(inputs)
-            inputs[prev_idx].focus()
-        elif inputs:
-            inputs[-1].focus()
 
     def action_cancel_edit(self) -> None:
         """Escape — отменить изменения и вернуть сохранённые значения."""
