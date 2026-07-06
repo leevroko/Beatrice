@@ -1,6 +1,6 @@
 """Правый вьюпорт — список связей текущего узла, добавление/удаление/редактирование."""
 
-from textual.widgets import Static, Label, Input
+from textual.widgets import Static, Label, Input, ListView, ListItem
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual.binding import Binding
@@ -278,14 +278,14 @@ class EditRelationDialog(ModalScreen):
         self.dismiss(None)
 
 
-class LinksList(Static):
+class LinksList(Static, can_focus=True):
     """Список входящих и исходящих связей текущего узла."""
 
     BINDINGS = [
-        Binding("o", "open_link", "Open"),
-        Binding("a", "add_link", "Add link"),
-        Binding("d", "delete_link", "Delete"),
-        Binding("r", "edit_relation", "Edit relation"),
+        Binding("o", "open_link", "Open", priority=True),
+        Binding("a", "add_link", "Add link", priority=True),
+        Binding("d", "delete_link", "Delete", priority=True),
+        Binding("r", "edit_relation", "Edit relation", priority=True),
     ]
 
     CSS = """

@@ -15,7 +15,7 @@ def _color_block(hex_color: str) -> str:
     return ""
 
 
-class NodeForm(Static):
+class NodeForm(Static, can_focus=True):
     """Форма просмотра и редактирования атрибутов узла."""
 
     BINDINGS = [

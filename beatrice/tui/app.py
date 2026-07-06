@@ -154,7 +154,7 @@ class MainScreen(Screen):
             def on_confirm(result):
                 if result:
                     self.app.exit()
-            self.push_screen(
+            self.app.push_screen(
                 ConfirmDialog("Unsaved changes",
                              "There are unsaved changes. Quit anyway? (y/Escape)"),
                 on_confirm
@@ -186,7 +186,7 @@ class MainScreen(Screen):
     def action_show_help(self) -> None:
         """Открыть экран справки."""
         from beatrice.tui.widgets.help_screen import HelpScreen
-        self.push_screen(HelpScreen())
+        self.app.push_screen(HelpScreen())
 
     def action_render(self) -> None:
         gm = self.app.graph_manager
@@ -203,7 +203,7 @@ class MainScreen(Screen):
                 return
             self._handle_command(result)
 
-        self.push_screen(CommandPalette(), on_command)
+        self.app.push_screen(CommandPalette(), on_command)
 
     def action_open_graph(self) -> None:
         """Запросить путь к графу и открыть его."""
@@ -225,7 +225,7 @@ class MainScreen(Screen):
             except Exception as e:
                 self.post_message(StatusMessage(f"Load error: {e}", "error"))
 
-        self.push_screen(
+        self.app.push_screen(
             InputDialog("Open graph", "Path to graph.json"), on_input)
 
     def _handle_command(self, handler_key: str) -> None:
@@ -281,7 +281,7 @@ class MainScreen(Screen):
             self._refresh_all()
             self._select_node(nid)
             self.post_message(StatusMessage(f"Node added: {nid}", "success"))
-        self.push_screen(InputDialog("Add node", "Node ID"), on_input)
+        self.app.push_screen(InputDialog("Add node", "Node ID"), on_input)
 
     def _cmd_rm_node(self) -> None:
         """:rm-node — быстрый ввод id для удаления."""
@@ -302,12 +302,12 @@ class MainScreen(Screen):
                 gm.remove_node(nid)
                 self._refresh_all()
                 self.post_message(StatusMessage(f"Deleted: {nid}", "success"))
-            self.push_screen(
+            self.app.push_screen(
                 ConfirmDialog("Delete node",
                     f"Delete '{nid}'?\n{degree} connection(s) will be removed."),
                 on_confirm,
             )
-        self.push_screen(InputDialog("Delete node", "Node ID"), on_input)
+        self.app.push_screen(InputDialog("Delete node", "Node ID"), on_input)
 
     def _cmd_render(self) -> None:
         gm = self.app.graph_manager

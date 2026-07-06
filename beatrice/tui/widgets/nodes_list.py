@@ -23,7 +23,7 @@ class NodeItem(ListItem):
         )
 
 
-class NodesList(Static):
+class NodesList(Static, can_focus=True):
     """Список узлов с fuzzy-поиском и фильтром сирот."""
 
     BINDINGS = [
