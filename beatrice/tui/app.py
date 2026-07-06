@@ -178,7 +178,88 @@ class MainScreen(Screen):
             self.post_message(StatusMessage(f"Render: not yet implemented", "warning"))
 
     def action_command_palette(self) -> None:
-        self.post_message(StatusMessage("Command palette: next iteration", "warning"))
+        """Открыть палитру команд."""
+        from beatrice.tui.widgets.command_palette import CommandPalette
+
+        def on_command(result):
+            if result is None:
+                return
+            self._handle_command(result)
+
+        self.push_screen(CommandPalette(), on_command)
+
+    def _handle_command(self, handler_key: str) -> None:
+        """Выполнить команду из палитры."""
+        handlers = {
+            "quit": lambda: self.action_quit(),
+            "save": lambda: self.action_save(),
+            "save_quit": lambda: (self.action_save(), self.app.exit())[0],
+            "undo": self._cmd_undo,
+            "redo": self._cmd_redo,
+            "render": self._cmd_render,
+            "theme_dark": self._cmd_theme_dark,
+            "theme_light": self._cmd_theme_light,
+            "filter_orphans_any": self._cmd_filter_orphans("any"),
+            "filter_orphans_yes": self._cmd_filter_orphans("orphans"),
+            "filter_orphans_no": self._cmd_filter_orphans("non-orphans"),
+        }
+        handler = handlers.get(handler_key)
+        if handler:
+            handler()
+
+    def _cmd_undo(self) -> None:
+        gm = self.app.graph_manager
+        if gm.undo():
+            self._refresh_all()
+            self.post_message(StatusMessage("Undo", "success"))
+        else:
+            self.post_message(StatusMessage("Nothing to undo", "info"))
+
+    def _cmd_redo(self) -> None:
+        gm = self.app.graph_manager
+        if gm.redo():
+            self._refresh_all()
+            self.post_message(StatusMessage("Redo", "success"))
+        else:
+            self.post_message(StatusMessage("Nothing to redo", "info"))
+
+    def _cmd_render(self) -> None:
+        gm = self.app.graph_manager
+        if gm.path:
+            output = Path(gm.path).with_suffix(".html")
+            self.post_message(StatusMessage(f"Render: not yet implemented", "warning"))
+
+    def _cmd_theme_dark(self) -> None:
+        self.theme = "dark"
+        self.post_message(StatusMessage("Theme: dark", "success"))
+
+    def _cmd_theme_light(self) -> None:
+        self.theme = "textual-light"
+        self.post_message(StatusMessage("Theme: light", "success"))
+
+    def _cmd_filter_orphans(self, mode: str):
+        def _apply():
+            nodes_list = self.query_one("#panel-left", NodesList)
+            nodes_list._show_orphans = mode
+            nodes_list._refresh_list()
+        return _apply
+
+    def _refresh_all(self) -> None:
+        """Полностью обновить все три вьюпорта после undo/redo."""
+        gm = self.app.graph_manager
+        nodes_list = self.query_one("#panel-left", NodesList)
+        nodes_list.load_from_graph_manager(gm)
+        self._update_status_bar()
+        # Обновить форму и связи для текущего узла
+        form = self.query_one("#panel-center", NodeForm)
+        if form.current_node and gm.has_node(form.current_node):
+            form.show_node(form.current_node, gm.node_attrs(form.current_node))
+            links = self.query_one("#panel-right", LinksList)
+            links.show_links(
+                form.current_node,
+                gm.neighbors_out(form.current_node),
+                gm.neighbors_in(form.current_node),
+            )
 
     def _update_status_bar(self) -> None:
         gm = self.app.graph_manager
