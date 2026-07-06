@@ -28,6 +28,14 @@ class LinkRow(Static):
         super().__init__(f"  {arrow} {node_id}{rel_part}", **kwargs)
 
 
+class NodeListItem(ListItem):
+    """ListItem, хранящий node_id как атрибут."""
+
+    def __init__(self, node_id: str, **kwargs) -> None:
+        self.node_id = node_id
+        super().__init__(Label(node_id), **kwargs)
+
+
 class AddLinkDialog(ModalScreen):
     """Диалог добавления новой связи — выбор узла из списка."""
 
@@ -132,33 +140,42 @@ class AddLinkDialog(ModalScreen):
         else:
             self._filtered = list(self._all_nodes)
         for n in self._filtered:
-            lv.append(ListItem(Label(n)))
+            lv.append(NodeListItem(n))
+        if self._filtered:
+            lv.index = 0
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "dialog-search":
             self._refresh_list(event.value)
 
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.input.id == "dialog-relation":
-            self._submit()
-
     def on_list_view_selected(self, event: ListView.Selected) -> None:
-        """Выбран узел из списка."""
-        item = event.item
-        if isinstance(item, ListItem):
-            label = item.children[0]
-            if isinstance(label, Label):
-                self.query_one("#dialog-search", Input).value = label.renderable
-                self.query_one("#dialog-relation", Input).focus()
+        """Выбран узел из списка — идём к relation."""
+        if isinstance(event.item, NodeListItem):
+            self.query_one("#dialog-relation", Input).focus()
+
+    def key_enter(self) -> None:
+        """Enter — подтвердить выбор из любого поля."""
+        self._submit()
 
     def key_escape(self) -> None:
         self.dismiss(None)
 
     def _submit(self) -> None:
-        target = self.query_one("#dialog-search", Input).value.strip()
+        """Подтвердить — взять выбранный узел из списка."""
+        lv = self.query_one("#dialog-list", ListView)
+        target = ""
+        if lv.index is not None and lv.index < len(lv.children):
+            selected = lv.children[lv.index]
+            if isinstance(selected, NodeListItem):
+                target = selected.node_id
+        if not target and len(lv.children) > 0:
+            first = lv.children[0]
+            if isinstance(first, NodeListItem):
+                target = first.node_id
         relation = self.query_one("#dialog-relation", Input).value.strip()
+
         if not target:
-            self.query_one("#dialog-hint", Label).update("[red]Select or type a target node![/]")
+            self.query_one("#dialog-hint", Label).update("[red]No target node selected![/]")
             return
         self.dismiss({"target": target, "relation": relation})
 
@@ -393,39 +410,44 @@ class LinksList(Static, can_focus=True):
 
     def action_add_link(self) -> None:
         """Добавить новую связь."""
-        if not self._current_node:
+        source_node = self._current_node
+        if not source_node:
             return
 
         gm = self.app.graph_manager
-        all_nodes = [n for n in gm.all_nodes() if n != self._current_node]
+        all_nodes = [n for n in gm.all_nodes() if n != source_node]
 
         def on_dialog(result):
             if result is None:
                 return
             target = result["target"]
             relation = result["relation"]
-            if target not in gm.G:
+
+            # Проверяем, что исходный узел всё ещё существует
+            if not gm.has_node(source_node):
+                self.post_message(StatusMessage(f"Source node gone", "error"))
+                return
+            if not gm.has_node(target):
                 self.post_message(StatusMessage(f"Node '{target}' not found", "error"))
                 return
-            if gm.has_edge(self._current_node, target):
+            if gm.has_edge(source_node, target):
                 self.post_message(StatusMessage(f"Link already exists", "warning"))
                 return
 
             attrs = {}
             if relation:
                 attrs["relation"] = relation
-            gm.add_edge(self._current_node, target, **attrs)
+            gm.add_edge(source_node, target, **attrs)
 
-            # Обновить вид
             self.show_links(
-                self._current_node,
-                gm.neighbors_out(self._current_node),
-                gm.neighbors_in(self._current_node),
+                source_node,
+                gm.neighbors_out(source_node),
+                gm.neighbors_in(source_node),
             )
             self.post_message(StatusMessage(
-                f"Link added: {self._current_node} → {target}", "success"))
+                f"Link added: {source_node} → {target}", "success"))
 
-        self.app.push_screen(AddLinkDialog(self._current_node, all_nodes), on_dialog)
+        self.app.push_screen(AddLinkDialog(source_node, all_nodes), on_dialog)
 
     def action_delete_link(self) -> None:
         """Удалить выбранную связь."""

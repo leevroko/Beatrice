@@ -1,7 +1,9 @@
 {
   "directed": true,
   "multigraph": false,
-  "graph": {},
+  "graph": {
+    "beatrice_counter": 0
+  },
   "nodes": [
     {
       "label": "Kafka",
@@ -56,6 +58,9 @@
       "type": "unknown",
       "desc": "Не имеет связей",
       "id": "OrphanNode"
+    },
+    {
+      "id": "test"
     }
   ],
   "edges": [

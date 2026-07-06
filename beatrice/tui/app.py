@@ -415,27 +415,39 @@ class BeatriceApp(App):
     }
     """
 
-    def __init__(self, graph_path: str):
+    def __init__(self, graph_path: str, graph_manager: GraphManager):
         super().__init__()
         self.graph_path = graph_path
-        self.graph_manager = GraphManager()
+        self.graph_manager = graph_manager
 
     def on_mount(self) -> None:
-        try:
-            self.graph_manager.load(self.graph_path)
-            gm = self.graph_manager
-            self.title = f"Beatrice — {Path(self.graph_path).name}"
-            self.sub_title = (
-                f"{gm.node_count} nodes · {gm.edge_count} edges · "
-                f"{gm.orphan_count} orphans"
-            )
-        except Exception as e:
-            self.title = "Beatrice — Error"
-            self.sub_title = str(e)
-
+        """Перейти на главный экран (граф уже загружен)."""
+        gm = self.graph_manager
+        self.title = f"Beatrice — {Path(self.graph_path).name}"
+        self.sub_title = (
+            f"{gm.node_count} nodes · {gm.edge_count} edges · "
+            f"{gm.orphan_count} orphans"
+        )
         self.push_screen(MainScreen())
 
 
 def run_tui(graph_path: str) -> None:
-    app = BeatriceApp(graph_path)
+    """Запустить TUI с указанным графом.
+
+    При ошибке загрузки печатает сообщение в stderr и завершается с кодом 1.
+    """
+    import sys
+
+    if not Path(graph_path).exists():
+        print(f"Ошибка: файл не найден: {graph_path}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        gm = GraphManager()
+        gm.load(graph_path)
+    except Exception as e:
+        print(f"Ошибка загрузки графа: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    app = BeatriceApp(graph_path, gm)
     app.run()
