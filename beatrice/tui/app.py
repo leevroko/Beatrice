@@ -29,6 +29,8 @@ class MainScreen(Screen):
         ("q", "quit", "Quit"),
         ("?", "show_help", "Help"),
         ("ctrl+s", "save", "Save"),
+        ("ctrl+z", "undo", "Undo"),
+        ("ctrl+y", "redo", "Redo"),
         ("r", "render", "Render HTML"),
         (":", "command_palette", "Commands"),
     ]
@@ -165,11 +167,16 @@ class MainScreen(Screen):
         except Exception as e:
             self.post_message(StatusMessage(f"Save error: {e}", "error"))
 
+    def action_undo(self) -> None:
+        self._cmd_undo()
+
+    def action_redo(self) -> None:
+        self._cmd_redo()
+
     def action_show_help(self) -> None:
-        self.post_message(StatusMessage(
-            "hjkl: nav  o: open  s: search  x: orphans  ?: help  :: commands  Ctrl+s: save  q: quit",
-            "info"
-        ))
+        """Открыть экран справки."""
+        from beatrice.tui.widgets.help_screen import HelpScreen
+        self.push_screen(HelpScreen())
 
     def action_render(self) -> None:
         gm = self.app.graph_manager
