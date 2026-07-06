@@ -5,7 +5,7 @@ from textual.containers import Vertical
 from textual.keys import Keys
 from rapidfuzz import fuzz
 
-from beatrice.tui.messages import NodeSelected, StatusMessage
+from beatrice.tui.messages import NodeSelected, StatusMessage, GraphChanged
 
 
 class NodeItem(ListItem):
@@ -27,10 +27,6 @@ class NodesList(Static, can_focus=True):
     """Список узлов с fuzzy-поиском и фильтром сирот."""
 
     BINDINGS = [
-        ("j", "cursor_down", "Down"),
-        ("k", "cursor_up", "Up"),
-        ("g", "cursor_first", "First"),
-        ("G", "cursor_last", "Last"),
         ("o", "open_node", "Open"),
         ("s", "search", "Search"),
         ("x", "cycle_orphan_filter", "Orphan filter"),
@@ -38,6 +34,8 @@ class NodesList(Static, can_focus=True):
         ("d", "delete_node", "Delete"),
         ("escape", "escape_search", "Clear search"),
     ]
+
+    # j/k/g/G — встроенная навигация ListView
 
     CSS = """
     NodesList {
@@ -262,6 +260,7 @@ class NodesList(Static, can_focus=True):
             self.load_from_graph_manager(gm)
             self.post_message(NodeSelected(nid))
             self.post_message(StatusMessage(f"Node added: {nid}", "success"))
+            self.post_message(GraphChanged())
 
         self.app.push_screen(AddNodeDialog(default_id=default_id), on_dialog)
 
@@ -292,5 +291,6 @@ class NodesList(Static, can_focus=True):
             if all_nodes:
                 self.post_message(NodeSelected(all_nodes[0]))
             self.post_message(StatusMessage(f"Deleted: {nid}", "success"))
+            self.post_message(GraphChanged())
 
         self.app.push_screen(ConfirmDialog("Delete node", msg), on_confirm)

@@ -9,7 +9,7 @@ from textual.containers import Horizontal
 from beatrice.tui.graph_manager import GraphManager
 from beatrice.tui.messages import (
     NodeSelected, NodeSaved, NodeAdded, NodeDeleted,
-    LinkAdded, LinkDeleted, FilterChanged, StatusMessage,
+    LinkAdded, LinkDeleted, FilterChanged, StatusMessage, GraphChanged,
 )
 from beatrice.tui.widgets.nodes_list import NodesList
 from beatrice.tui.widgets.node_form import NodeForm
@@ -377,6 +377,12 @@ class MainScreen(Screen):
     def on_node_selected(self, message: NodeSelected) -> None:
         self._select_node(message.node_id)
         self._focus_panel(1)  # фокус на форму
+
+    def on_graph_changed(self, message: GraphChanged) -> None:
+        """Graph changed — update nodes list and status bar."""
+        nodes_list = self.query_one("#panel-left", NodesList)
+        nodes_list.load_from_graph_manager(self.app.graph_manager)
+        self._update_status_bar()
 
     def on_status_message(self, message: StatusMessage) -> None:
         bar = self.query_one("#help-bar", Label)

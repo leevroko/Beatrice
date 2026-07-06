@@ -71,6 +71,13 @@ class GraphSaved(Message):
         super().__init__()
 
 
+class GraphChanged(Message):
+    """Граф изменился (добавлен/удалён узел или ребро).
+    Виджеты-панели должны перезапросить данные.
+    """
+    pass
+
+
 class StatusMessage(Message):
     """Сообщение для нижней строки (статус/ошибка)."""
 
