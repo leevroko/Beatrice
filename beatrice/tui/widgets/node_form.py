@@ -18,6 +18,11 @@ def _color_block(hex_color: str) -> str:
 class NodeForm(Static):
     """Форма просмотра и редактирования атрибутов узла."""
 
+    BINDINGS = [
+        Binding("tab", "next_field", "Next field", priority=True),
+        Binding("shift+tab", "prev_field", "Prev field", priority=True),
+    ]
+
     CSS = """
     NodeForm {
         height: 100%;
@@ -120,6 +125,10 @@ class NodeForm(Static):
         empty.display = False
 
         self._build_form(node_id, attrs)
+
+        # Авто-фокус на первое поле ввода
+        first = self.query_one("#node-label-input", Input)
+        first.focus()
 
     def _build_form(self, node_id: str, attrs: dict) -> None:
         """Построить или обновить поля формы."""
@@ -255,6 +264,32 @@ class NodeForm(Static):
             header = self.query_one("#form-header", Label)
             header.update("Node")
             self.post_message(StatusMessage("Edit cancelled", "info"))
+
+    def action_next_field(self) -> None:
+        """Tab — фокус на следующее поле формы."""
+        inputs = list(self.query(Input)) + list(self.query(TextArea))
+        if not inputs:
+            return
+        focused = self.app.focused
+        if focused in inputs:
+            idx = inputs.index(focused)
+            next_idx = (idx + 1) % len(inputs)
+            inputs[next_idx].focus()
+        elif inputs:
+            inputs[0].focus()
+
+    def action_prev_field(self) -> None:
+        """Shift+Tab — фокус на предыдущее поле формы."""
+        inputs = list(self.query(Input)) + list(self.query(TextArea))
+        if not inputs:
+            return
+        focused = self.app.focused
+        if focused in inputs:
+            idx = inputs.index(focused)
+            prev_idx = (idx - 1) % len(inputs)
+            inputs[prev_idx].focus()
+        elif inputs:
+            inputs[-1].focus()
 
     @property
     def current_node(self) -> str | None:

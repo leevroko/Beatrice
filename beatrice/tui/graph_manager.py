@@ -23,6 +23,7 @@ class GraphManager:
         self._dirty: bool = False
         self._snapshots: list[dict] = []  # список nx.node_link_data() снимков
         self._snapshot_index: int = -1     # текущая позиция в истории (-1 = нет снимков)
+        self._counter: int = 0             # счётчик для автогенерации node id
 
     # ────── Загрузка / сохранение ──────
 
@@ -33,12 +34,16 @@ class GraphManager:
         self._dirty = False
         self._snapshots = []
         self._snapshot_index = -1
+        # Восстанавливаем счётчик из мета-данных графа
+        self._counter = self.G.graph.get("beatrice_counter", 0)
         self._push_snapshot()
 
     def save(self) -> None:
         """Сохранить текущее состояние графа на диск."""
         if self.path is None:
             raise BeatriceError("Путь к файлу не указан")
+        # Сохраняем счётчик в мета-данные графа перед записью
+        self.G.graph["beatrice_counter"] = self._counter
         save_graph(self.G, self.path)
         self._dirty = False
 
@@ -82,6 +87,16 @@ class GraphManager:
         """Добавить узел. Если существует — обновить атрибуты."""
         self.G.add_node(node_id, **attrs)
         self._mark_changed()
+
+    def next_node_id(self) -> str:
+        """Сгенерировать уникальный ID узла (node1, node2, ...)."""
+        self._counter += 1
+        nid = f"node{self._counter}"
+        # Гарантия уникальности — если коллизия, продолжаем инкремент
+        while self.G.has_node(nid):
+            self._counter += 1
+            nid = f"node{self._counter}"
+        return nid
 
     def remove_node(self, node_id: str) -> None:
         """Удалить узел и все его связи."""

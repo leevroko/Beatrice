@@ -247,6 +247,8 @@ class NodesList(Static):
         """Добавить новый узел через диалог."""
         from beatrice.tui.widgets.dialogs import AddNodeDialog
 
+        default_id = self.app.graph_manager.next_node_id()
+
         def on_dialog(result):
             if result is None:
                 return
@@ -261,7 +263,7 @@ class NodesList(Static):
             self.post_message(NodeSelected(nid))
             self.post_message(StatusMessage(f"Node added: {nid}", "success"))
 
-        self.app.push_screen(AddNodeDialog(), on_dialog)
+        self.app.push_screen(AddNodeDialog(default_id=default_id), on_dialog)
 
     def action_delete_node(self) -> None:
         """Удалить узел с подтверждением."""

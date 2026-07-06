@@ -92,13 +92,14 @@ class AddNodeDialog(ModalScreen):
     }
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, default_id: str = "node1", **kwargs) -> None:
         super().__init__(**kwargs)
+        self._default_id = default_id
 
     def compose(self):
         yield Vertical(
             Label("Add Node", id="dialog-title"),
-            Input(placeholder="Node ID (required)", id="dialog-id", classes="dialog-input"),
+            Input(value=self._default_id, placeholder="Node ID", id="dialog-id", classes="dialog-input"),
             Input(placeholder="Label (optional)", id="dialog-label", classes="dialog-input"),
             Input(placeholder="Type (optional)", id="dialog-type", classes="dialog-input"),
             Label("Enter: add  Escape: cancel", id="dialog-hint"),

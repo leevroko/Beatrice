@@ -29,7 +29,7 @@ class LinkRow(Static):
 
 
 class AddLinkDialog(ModalScreen):
-    """Диалог добавления новой связи."""
+    """Диалог добавления новой связи — выбор узла из списка."""
 
     CSS = """
     AddLinkDialog {
@@ -38,7 +38,7 @@ class AddLinkDialog(ModalScreen):
 
     #dialog {
         width: 40;
-        height: auto;
+        height: 24;
         background: #16213e;
         border: thick #e94560;
         padding: 2;
@@ -48,6 +48,17 @@ class AddLinkDialog(ModalScreen):
         color: #e94560;
         text-style: bold;
         margin-bottom: 1;
+    }
+
+    #dialog-search {
+        background: #0f3460;
+        border: solid #0f3460;
+        color: #eee;
+        margin-bottom: 1;
+    }
+
+    #dialog-search:focus {
+        border: tall #e94560;
     }
 
     .dialog-input {
@@ -61,6 +72,24 @@ class AddLinkDialog(ModalScreen):
         border: tall #e94560;
     }
 
+    #dialog-list {
+        height: 1fr;
+        border: none;
+        background: #0f3460;
+    }
+
+    ListItem {
+        padding: 0 1;
+    }
+
+    ListItem:hover {
+        background: #16213e;
+    }
+
+    ListItem.--highlight {
+        background: #e94560;
+    }
+
     #dialog-hint {
         color: #888;
         margin-top: 1;
@@ -70,32 +99,66 @@ class AddLinkDialog(ModalScreen):
     def __init__(self, source_node: str, all_nodes: list[str]) -> None:
         super().__init__()
         self.source_node = source_node
-        self.all_nodes = all_nodes
+        self._all_nodes = all_nodes
+        self._filtered = all_nodes[:]
 
     def compose(self):
         yield Vertical(
             Label(f"Add link from [bold]{self.source_node}[/bold]", id="dialog-title"),
-            Input(placeholder="Target node ID", id="dialog-target", classes="dialog-input"),
+            Input(placeholder="🔍 Search node...", id="dialog-search"),
+            ListView(id="dialog-list"),
             Input(placeholder="Relation (optional)", id="dialog-relation", classes="dialog-input"),
             Label("Enter: add  Escape: cancel", id="dialog-hint"),
             id="dialog",
         )
 
     def on_mount(self) -> None:
-        self.query_one("#dialog-target", Input).focus()
+        self._refresh_list("")
+        self.query_one("#dialog-search", Input).focus()
+
+    def _refresh_list(self, query: str) -> None:
+        """Отфильтровать список узлов."""
+        lv = self.query_one("#dialog-list", ListView)
+        lv.clear()
+        if query:
+            from rapidfuzz import fuzz
+            scored = []
+            for n in self._all_nodes:
+                score = fuzz.partial_ratio(query.lower(), n.lower())
+                if score > 30:
+                    scored.append((score, n))
+            scored.sort(key=lambda x: -x[0])
+            self._filtered = [n for _, n in scored]
+        else:
+            self._filtered = list(self._all_nodes)
+        for n in self._filtered:
+            lv.append(ListItem(Label(n)))
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "dialog-search":
+            self._refresh_list(event.value)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "dialog-relation":
             self._submit()
 
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """Выбран узел из списка."""
+        item = event.item
+        if isinstance(item, ListItem):
+            label = item.children[0]
+            if isinstance(label, Label):
+                self.query_one("#dialog-search", Input).value = label.renderable
+                self.query_one("#dialog-relation", Input).focus()
+
     def key_escape(self) -> None:
         self.dismiss(None)
 
     def _submit(self) -> None:
-        target = self.query_one("#dialog-target", Input).value.strip()
+        target = self.query_one("#dialog-search", Input).value.strip()
         relation = self.query_one("#dialog-relation", Input).value.strip()
         if not target:
-            self.query_one("#dialog-hint", Label).update("Target node cannot be empty!")
+            self.query_one("#dialog-hint", Label).update("[red]Select or type a target node![/]")
             return
         self.dismiss({"target": target, "relation": relation})
 
@@ -279,13 +342,14 @@ class LinksList(Static):
         self._out_links = out_links
         self._in_links = in_links
 
-        empty = self.query_one("#links-empty", Label)
-        empty.display = False
-
+        # Полная очистка — удаляем всё, кроме links-header и links-empty (из compose)
         for child in list(self.children):
             if child.id in ("links-header", "links-empty"):
                 continue
             child.remove()
+
+        empty = self.query_one("#links-empty", Label)
+        empty.display = False
 
         out_label = "  → Outgoing"
         out_count = f" ({len(out_links)})" if out_links else " (0)"
@@ -294,7 +358,8 @@ class LinksList(Static):
             for tgt, data in out_links:
                 self.mount(LinkRow(tgt, data.get("relation", ""), "out"))
         else:
-            self.mount(Label("  (none)", id="links-empty-out"))
+            # Без id — Textual сам управляет уникальностью
+            self.mount(Label("  (none)"))
 
         in_label = "  ← Incoming"
         in_count = f" ({len(in_links)})" if in_links else " (0)"
@@ -303,7 +368,7 @@ class LinksList(Static):
             for src, data in in_links:
                 self.mount(LinkRow(src, data.get("relation", ""), "in"))
         else:
-            self.mount(Label("  (none)", id="links-empty-in"))
+            self.mount(Label("  (none)"))
 
     def _selected_link(self) -> LinkRow | None:
         """Найти выбранный (сфокусированный) LinkRow."""
