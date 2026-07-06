@@ -1,11 +1,11 @@
 """Левый вьюпорт — список всех узлов с фильтрацией."""
 
 from textual.widgets import Static, ListView, ListItem, Label, Input
-from textual.containers import Vertical, Horizontal
-from textual.reactive import reactive
+from textual.containers import Vertical
+from textual.keys import Keys
 from rapidfuzz import fuzz
 
-from beatrice.tui.messages import NodeSelected, FilterChanged, StatusMessage
+from beatrice.tui.messages import NodeSelected, StatusMessage
 
 
 class NodeItem(ListItem):
@@ -25,6 +25,19 @@ class NodeItem(ListItem):
 
 class NodesList(Static):
     """Список узлов с fuzzy-поиском и фильтром сирот."""
+
+    BINDINGS = [
+        ("j", "cursor_down", "Down"),
+        ("k", "cursor_up", "Up"),
+        ("g", "cursor_first", "First"),
+        ("G", "cursor_last", "Last"),
+        ("o", "open_node", "Open"),
+        ("s", "search", "Search"),
+        ("x", "cycle_orphan_filter", "Orphan filter"),
+        ("a", "add_node", "Add node"),
+        ("d", "delete_node", "Delete"),
+        ("escape", "escape_search", "Clear search"),
+    ]
 
     CSS = """
     NodesList {
@@ -53,6 +66,7 @@ class NodesList(Static):
     #nodes-counter {
         color: #888;
         text-style: italic;
+        margin-bottom: 1;
     }
 
     #nodes-list {
@@ -83,7 +97,7 @@ class NodesList(Static):
 
     def __init__(self) -> None:
         super().__init__()
-        self._all_items: list[dict] = []  # {"id": ..., "label": ..., "type": ..., "is_orphan": ...}
+        self._all_items: list[dict] = []
         self._query = ""
         self._show_orphans = "any"
 
@@ -110,6 +124,12 @@ class NodesList(Static):
             })
         self._refresh_list()
 
+    def on_focus(self) -> None:
+        """При фокусе — показать контекстные подсказки."""
+        self.post_message(StatusMessage(
+            "j/k: nav  o: open  s: search  x: orphans  a: add  d: delete", "info"
+        ))
+
     def _refresh_list(self) -> None:
         """Отфильтровать и обновить список."""
         list_view = self.query_one("#nodes-list", ListView)
@@ -130,24 +150,22 @@ class NodesList(Static):
 
         total = len(self._all_items)
         shown = len(filtered)
-        counter_str = f"{shown} / {total} nodes"
+        counter_str = f"{shown} / {total}"
         if self._show_orphans == "orphans":
-            counter_str += " [👻 orphans]"
+            counter_str += " 👻 orphans"
         elif self._show_orphans == "non-orphans":
-            counter_str += " [🔗 non-orphans]"
+            counter_str += " 🔗 non-orphans"
         counter.update(counter_str)
 
     def _filter_items(self) -> list[dict]:
         """Применить fuzzy-поиск и фильтр сирот."""
         items = self._all_items
 
-        # Orphan filter
         if self._show_orphans == "orphans":
             items = [i for i in items if i["is_orphan"]]
         elif self._show_orphans == "non-orphans":
             items = [i for i in items if not i["is_orphan"]]
 
-        # Fuzzy search
         if self._query:
             scored = []
             for item in items:
@@ -169,30 +187,66 @@ class NodesList(Static):
             self._refresh_list()
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
-        """Выбран узел — сообщаем."""
         item = event.item
         if isinstance(item, NodeItem):
             self.post_message(NodeSelected(item.node_id))
+            self.post_message(StatusMessage(
+                f"Opened: {item.node_id}", "success"
+            ))
 
-    # ────── Хоткеи ──────
+    def action_cursor_down(self) -> None:
+        lv = self.query_one("#nodes-list", ListView)
+        if lv.index is None:
+            lv.index = 0
+        elif lv.index < len(lv.children) - 1:
+            lv.index += 1
+        lv.action_cursor_down()
+
+    def action_cursor_up(self) -> None:
+        lv = self.query_one("#nodes-list", ListView)
+        if lv.index is None:
+            lv.index = 0
+        elif lv.index > 0:
+            lv.index -= 1
+        lv.action_cursor_up()
+
+    def action_cursor_first(self) -> None:
+        lv = self.query_one("#nodes-list", ListView)
+        if len(lv.children) > 0:
+            lv.index = 0
+
+    def action_cursor_last(self) -> None:
+        lv = self.query_one("#nodes-list", ListView)
+        if len(lv.children) > 0:
+            lv.index = len(lv.children) - 1
 
     def action_search(self) -> None:
-        """Фокус на строку поиска."""
         self.query_one("#nodes-search", Input).focus()
 
+    def action_escape_search(self) -> None:
+        search = self.query_one("#nodes-search", Input)
+        if search.value:
+            search.value = ""
+            self._query = ""
+            self._refresh_list()
+        self.focus()
+
     def action_cycle_orphan_filter(self) -> None:
-        """Цикл фильтра сирот: any → orphans → non-orphans → any."""
         cycle = {"any": "orphans", "orphans": "non-orphans", "non-orphans": "any"}
         self._show_orphans = cycle[self._show_orphans]
         self._refresh_list()
-        self.post_message(StatusMessage(
-            f"Filter: {self._show_orphans}", "info"
-        ))
 
     def action_open_node(self) -> None:
-        """Открыть выбранный узел."""
-        list_view = self.query_one("#nodes-list", ListView)
-        if list_view.index is not None and list_view.index < len(list_view):
-            item = list_view.children[list_view.index]
+        lv = self.query_one("#nodes-list", ListView)
+        if lv.index is not None and lv.index < len(lv.children):
+            item = lv.children[lv.index]
             if isinstance(item, NodeItem):
                 self.post_message(NodeSelected(item.node_id))
+
+    def action_add_node(self) -> None:
+        """Добавить новый узел — заглушка (будет реализовано в итерации 3)."""
+        self.post_message(StatusMessage("Add node: coming in next iteration", "warning"))
+
+    def action_delete_node(self) -> None:
+        """Удалить узел — заглушка."""
+        self.post_message(StatusMessage("Delete node: coming in next iteration", "warning"))
