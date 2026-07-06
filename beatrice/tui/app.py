@@ -31,6 +31,7 @@ class MainScreen(Screen):
         ("ctrl+s", "save", "Save"),
         ("ctrl+z", "undo", "Undo"),
         ("ctrl+y", "redo", "Redo"),
+        ("e", "open_graph", "Open"),
         ("r", "render", "Render HTML"),
         (":", "command_palette", "Commands"),
     ]
@@ -146,9 +147,18 @@ class MainScreen(Screen):
         self._focus_panel(targets[self._active_panel])
 
     def action_quit(self) -> None:
+        """Выйти с проверкой на несохранённые изменения."""
         gm = self.app.graph_manager
         if gm.dirty:
-            self.post_message(StatusMessage("Unsaved changes! Save with Ctrl+s or :w", "warning"))
+            from beatrice.tui.widgets.dialogs import ConfirmDialog
+            def on_confirm(result):
+                if result:
+                    self.app.exit()
+            self.push_screen(
+                ConfirmDialog("Unsaved changes",
+                             "There are unsaved changes. Quit anyway? (y/Escape)"),
+                on_confirm
+            )
         else:
             self.app.exit()
 
@@ -195,6 +205,29 @@ class MainScreen(Screen):
 
         self.push_screen(CommandPalette(), on_command)
 
+    def action_open_graph(self) -> None:
+        """Запросить путь к графу и открыть его."""
+        from beatrice.tui.widgets.dialogs import InputDialog
+
+        def on_input(path):
+            if path is None or not path.strip():
+                return
+            path = path.strip()
+            if not Path(path).exists():
+                self.post_message(StatusMessage(f"File not found: {path}", "error"))
+                return
+            try:
+                self.app.graph_manager.load(path)
+                self.app.title = f"Beatrice — {Path(path).name}"
+                self._refresh_all()
+                self._update_status_bar()
+                self.post_message(StatusMessage(f"Opened: {path}", "success"))
+            except Exception as e:
+                self.post_message(StatusMessage(f"Load error: {e}", "error"))
+
+        self.push_screen(
+            InputDialog("Open graph", "Path to graph.json"), on_input)
+
     def _handle_command(self, handler_key: str) -> None:
         """Выполнить команду из палитры."""
         handlers = {
@@ -203,6 +236,9 @@ class MainScreen(Screen):
             "save_quit": lambda: (self.action_save(), self.app.exit())[0],
             "undo": self._cmd_undo,
             "redo": self._cmd_redo,
+            "open_graph": lambda: self.action_open_graph(),
+            "add_node": lambda: self._cmd_add_node(),
+            "rm_node": lambda: self._cmd_rm_node(),
             "render": self._cmd_render,
             "theme_dark": self._cmd_theme_dark,
             "theme_light": self._cmd_theme_light,
@@ -229,6 +265,49 @@ class MainScreen(Screen):
             self.post_message(StatusMessage("Redo", "success"))
         else:
             self.post_message(StatusMessage("Nothing to redo", "info"))
+
+    def _cmd_add_node(self) -> None:
+        """:add-node — быстрый ввод id через InputDialog."""
+        from beatrice.tui.widgets.dialogs import InputDialog
+        def on_input(nid):
+            if nid is None or not nid.strip():
+                return
+            nid = nid.strip()
+            gm = self.app.graph_manager
+            if gm.has_node(nid):
+                self.post_message(StatusMessage(f"Node '{nid}' already exists", "warning"))
+                return
+            gm.add_node(nid)
+            self._refresh_all()
+            self._select_node(nid)
+            self.post_message(StatusMessage(f"Node added: {nid}", "success"))
+        self.push_screen(InputDialog("Add node", "Node ID"), on_input)
+
+    def _cmd_rm_node(self) -> None:
+        """:rm-node — быстрый ввод id для удаления."""
+        from beatrice.tui.widgets.dialogs import InputDialog
+        def on_input(nid):
+            if nid is None or not nid.strip():
+                return
+            nid = nid.strip()
+            gm = self.app.graph_manager
+            if not gm.has_node(nid):
+                self.post_message(StatusMessage(f"Node '{nid}' not found", "error"))
+                return
+            degree = gm.degree(nid)
+            from beatrice.tui.widgets.dialogs import ConfirmDialog
+            def on_confirm(ok):
+                if not ok:
+                    return
+                gm.remove_node(nid)
+                self._refresh_all()
+                self.post_message(StatusMessage(f"Deleted: {nid}", "success"))
+            self.push_screen(
+                ConfirmDialog("Delete node",
+                    f"Delete '{nid}'?\n{degree} connection(s) will be removed."),
+                on_confirm,
+            )
+        self.push_screen(InputDialog("Delete node", "Node ID"), on_input)
 
     def _cmd_render(self) -> None:
         gm = self.app.graph_manager

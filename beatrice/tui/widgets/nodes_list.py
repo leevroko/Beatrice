@@ -244,9 +244,51 @@ class NodesList(Static):
                 self.post_message(NodeSelected(item.node_id))
 
     def action_add_node(self) -> None:
-        """Добавить новый узел — заглушка (будет реализовано в итерации 3)."""
-        self.post_message(StatusMessage("Add node: coming in next iteration", "warning"))
+        """Добавить новый узел через диалог."""
+        from beatrice.tui.widgets.dialogs import AddNodeDialog
+
+        def on_dialog(result):
+            if result is None:
+                return
+            nid = result["id"]
+            attrs = {k: v for k, v in result.items() if k != "id" and v}
+            gm = self.app.graph_manager
+            if gm.has_node(nid):
+                self.post_message(StatusMessage(f"Node '{nid}' already exists", "warning"))
+                return
+            gm.add_node(nid, **attrs)
+            self.load_from_graph_manager(gm)
+            self.post_message(NodeSelected(nid))
+            self.post_message(StatusMessage(f"Node added: {nid}", "success"))
+
+        self.app.push_screen(AddNodeDialog(), on_dialog)
 
     def action_delete_node(self) -> None:
-        """Удалить узел — заглушка."""
-        self.post_message(StatusMessage("Delete node: coming in next iteration", "warning"))
+        """Удалить узел с подтверждением."""
+        lv = self.query_one("#nodes-list", ListView)
+        if lv.index is None or lv.index >= len(lv.children):
+            return
+        item = lv.children[lv.index]
+        if not isinstance(item, NodeItem):
+            return
+        nid = item.node_id
+        gm = self.app.graph_manager
+
+        from beatrice.tui.widgets.dialogs import ConfirmDialog
+        degree = gm.degree(nid)
+        msg = f"Delete node '{nid}'?"
+        if degree > 0:
+            msg += f"\nAll {degree} connection(s) will also be removed."
+
+        def on_confirm(result):
+            if not result:
+                return
+            gm.remove_node(nid)
+            self.load_from_graph_manager(gm)
+            # Выбрать другой узел, если возможно
+            all_nodes = gm.all_nodes()
+            if all_nodes:
+                self.post_message(NodeSelected(all_nodes[0]))
+            self.post_message(StatusMessage(f"Deleted: {nid}", "success"))
+
+        self.app.push_screen(ConfirmDialog("Delete node", msg), on_confirm)
