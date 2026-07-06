@@ -1,18 +1,22 @@
-"""Правый вьюпорт — список связей текущего узла."""
+"""Правый вьюпорт — список связей текущего узла, добавление/удаление/редактирование."""
 
-from textual.widgets import Static, Label
+from textual.widgets import Static, Label, Input
 from textual.containers import Vertical
+from textual.screen import ModalScreen
+from textual.binding import Binding
+
+from beatrice.tui.messages import NodeSelected, StatusMessage
 
 
 class SectionLabel(Static):
-    """Заголовок секции (исходящие/входящие)."""
+    """Заголовок секции."""
 
     def __init__(self, text: str) -> None:
         super().__init__(text)
 
 
 class LinkRow(Static):
-    """Одна строка связи."""
+    """Одна строка связи — кликабельна."""
 
     def __init__(self, node_id: str, relation: str = "",
                  direction: str = "out") -> None:
@@ -24,8 +28,202 @@ class LinkRow(Static):
         super().__init__(f"  {arrow} {node_id}{rel_part}")
 
 
+class AddLinkDialog(ModalScreen):
+    """Диалог добавления новой связи."""
+
+    CSS = """
+    AddLinkDialog {
+        align: center middle;
+    }
+
+    #dialog {
+        width: 40;
+        height: auto;
+        background: #16213e;
+        border: thick #e94560;
+        padding: 2;
+    }
+
+    #dialog-title {
+        color: #e94560;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+
+    .dialog-input {
+        background: #0f3460;
+        border: solid #0f3460;
+        color: #eee;
+        margin-bottom: 1;
+    }
+
+    .dialog-input:focus {
+        border: tall #e94560;
+    }
+
+    #dialog-hint {
+        color: #888;
+        margin-top: 1;
+    }
+    """
+
+    def __init__(self, source_node: str, all_nodes: list[str]) -> None:
+        super().__init__()
+        self.source_node = source_node
+        self.all_nodes = all_nodes
+
+    def compose(self):
+        yield Vertical(
+            Label(f"Add link from [bold]{self.source_node}[/bold]", id="dialog-title"),
+            Input(placeholder="Target node ID", id="dialog-target", classes="dialog-input"),
+            Input(placeholder="Relation (optional)", id="dialog-relation", classes="dialog-input"),
+            Label("Enter: add  Escape: cancel", id="dialog-hint"),
+            id="dialog",
+        )
+
+    def on_mount(self) -> None:
+        self.query_one("#dialog-target", Input).focus()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "dialog-relation":
+            self._submit()
+
+    def key_escape(self) -> None:
+        self.dismiss(None)
+
+    def _submit(self) -> None:
+        target = self.query_one("#dialog-target", Input).value.strip()
+        relation = self.query_one("#dialog-relation", Input).value.strip()
+        if not target:
+            self.query_one("#dialog-hint", Label).update("Target node cannot be empty!")
+            return
+        self.dismiss({"target": target, "relation": relation})
+
+
+class DeleteLinkConfirm(ModalScreen):
+    """Подтверждение удаления связи."""
+
+    CSS = """
+    DeleteLinkConfirm {
+        align: center middle;
+    }
+
+    #dialog {
+        width: 40;
+        height: auto;
+        background: #16213e;
+        border: thick #e94560;
+        padding: 2;
+    }
+
+    #dialog-title {
+        color: #e94560;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+
+    #dialog-hint {
+        color: #888;
+        margin-top: 1;
+    }
+    """
+
+    def __init__(self, source: str, target: str, relation: str = "") -> None:
+        super().__init__()
+        self.source = source
+        self.target = target
+        self.relation = relation
+
+    def compose(self):
+        rel = f" [{self.relation}]" if self.relation else ""
+        yield Vertical(
+            Label("Delete link?", id="dialog-title"),
+            Label(f"{self.source} → {self.target}{rel}"),
+            Label("y: confirm  Escape: cancel", id="dialog-hint"),
+            id="dialog",
+        )
+
+    def key_y(self) -> None:
+        self.dismiss(True)
+
+    def key_escape(self) -> None:
+        self.dismiss(None)
+
+
+class EditRelationDialog(ModalScreen):
+    """Диалог редактирования relation."""
+
+    CSS = """
+    EditRelationDialog {
+        align: center middle;
+    }
+
+    #dialog {
+        width: 40;
+        height: auto;
+        background: #16213e;
+        border: thick #e94560;
+        padding: 2;
+    }
+
+    #dialog-title {
+        color: #e94560;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+
+    .dialog-input {
+        background: #0f3460;
+        border: solid #0f3460;
+        color: #eee;
+        margin-bottom: 1;
+    }
+
+    .dialog-input:focus {
+        border: tall #e94560;
+    }
+
+    #dialog-hint {
+        color: #888;
+        margin-top: 1;
+    }
+    """
+
+    def __init__(self, source: str, target: str, old_relation: str = "") -> None:
+        super().__init__()
+        self.source = source
+        self.target = target
+        self.old_relation = old_relation
+
+    def compose(self):
+        yield Vertical(
+            Label(f"Edit relation: {self.source} → {self.target}", id="dialog-title"),
+            Input(value=self.old_relation, placeholder="Relation",
+                  id="dialog-relation", classes="dialog-input"),
+            Label("Enter: save  Escape: cancel", id="dialog-hint"),
+            id="dialog",
+        )
+
+    def on_mount(self) -> None:
+        self.query_one("#dialog-relation", Input).focus()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "dialog-relation":
+            self.dismiss(event.value)
+
+    def key_escape(self) -> None:
+        self.dismiss(None)
+
+
 class LinksList(Static):
     """Список входящих и исходящих связей текущего узла."""
+
+    BINDINGS = [
+        Binding("o", "open_link", "Open"),
+        Binding("a", "add_link", "Add link"),
+        Binding("d", "delete_link", "Delete"),
+        Binding("r", "edit_relation", "Edit relation"),
+    ]
 
     CSS = """
     LinksList {
@@ -63,45 +261,182 @@ class LinksList(Static):
     def __init__(self) -> None:
         super().__init__()
         self._current_node: str | None = None
+        self._out_links: list[tuple[str, dict]] = []
+        self._in_links: list[tuple[str, dict]] = []
 
     def compose(self):
         yield Label("Links", id="links-header")
         yield Label("Select a node to see its links", id="links-empty")
+
+    def on_focus(self) -> None:
+        self.post_message(StatusMessage("o: open linked  a: add link  d: delete  r: edit relation", "info"))
 
     def show_links(self, node_id: str,
                    out_links: list[tuple[str, dict]],
                    in_links: list[tuple[str, dict]]) -> None:
         """Заполнить список связей для узла."""
         self._current_node = node_id
+        self._out_links = out_links
+        self._in_links = in_links
 
         empty = self.query_one("#links-empty", Label)
         empty.display = False
 
-        # Удаляем старые секции
         for child in list(self.children):
             if child.id in ("links-header", "links-empty"):
                 continue
             child.remove()
 
-        # Исходящие
-        self.mount(SectionLabel("  → Outgoing", classes="section-title"))
+        out_label = "  → Outgoing"
+        out_count = f" ({len(out_links)})" if out_links else " (0)"
+        self.mount(SectionLabel(f"{out_label}{out_count}", classes="section-title"))
         if out_links:
             for tgt, data in out_links:
                 self.mount(LinkRow(tgt, data.get("relation", ""), "out"))
         else:
-            self.mount(Label("  (none)", id="links-empty"))
+            self.mount(Label("  (none)", id="links-empty-out"))
 
-        # Входящие
-        self.mount(SectionLabel("  ← Incoming", classes="section-title"))
+        in_label = "  ← Incoming"
+        in_count = f" ({len(in_links)})" if in_links else " (0)"
+        self.mount(SectionLabel(f"{in_label}{in_count}", classes="section-title"))
         if in_links:
             for src, data in in_links:
                 self.mount(LinkRow(src, data.get("relation", ""), "in"))
         else:
-            self.mount(Label("  (none)", id="links-empty"))
+            self.mount(Label("  (none)", id="links-empty-in"))
+
+    def _selected_link(self) -> LinkRow | None:
+        """Найти выбранный (сфокусированный) LinkRow."""
+        focused = self.focused
+        if isinstance(focused, LinkRow):
+            return focused
+        # fallback: первый LinkRow
+        for child in self.children:
+            if isinstance(child, LinkRow):
+                return child
+        return None
+
+    def action_open_link(self) -> None:
+        """Открыть связанный узел."""
+        if not self._current_node:
+            return
+        # Ищем LinkRow, на котором фокус
+        link = self._selected_link()
+        gm = self.app.graph_manager
+        if link and gm.has_node(link.node_id):
+            self.post_message(NodeSelected(link.node_id))
+
+    def action_add_link(self) -> None:
+        """Добавить новую связь."""
+        if not self._current_node:
+            return
+
+        gm = self.app.graph_manager
+        all_nodes = [n for n in gm.all_nodes() if n != self._current_node]
+
+        def on_dialog(result):
+            if result is None:
+                return
+            target = result["target"]
+            relation = result["relation"]
+            if target not in gm.G:
+                self.post_message(StatusMessage(f"Node '{target}' not found", "error"))
+                return
+            if gm.has_edge(self._current_node, target):
+                self.post_message(StatusMessage(f"Link already exists", "warning"))
+                return
+
+            attrs = {}
+            if relation:
+                attrs["relation"] = relation
+            gm.add_edge(self._current_node, target, **attrs)
+
+            # Обновить вид
+            self.show_links(
+                self._current_node,
+                gm.neighbors_out(self._current_node),
+                gm.neighbors_in(self._current_node),
+            )
+            self.post_message(StatusMessage(
+                f"Link added: {self._current_node} → {target}", "success"))
+
+        self.app.push_screen(AddLinkDialog(self._current_node, all_nodes), on_dialog)
+
+    def action_delete_link(self) -> None:
+        """Удалить выбранную связь."""
+        if not self._current_node:
+            return
+        link = self._selected_link()
+        if not link:
+            return
+
+        source = self._current_node if link.direction == "out" else link.node_id
+        target = link.node_id if link.direction == "out" else self._current_node
+
+        gm = self.app.graph_manager
+        if not gm.has_edge(source, target):
+            self.post_message(StatusMessage(f"Link not found", "error"))
+            return
+
+        def on_confirm(result):
+            if not result:
+                return
+            gm.remove_edge(source, target)
+            self.show_links(
+                self._current_node,
+                gm.neighbors_out(self._current_node),
+                gm.neighbors_in(self._current_node),
+            )
+            self.post_message(StatusMessage(
+                f"Link deleted: {source} → {target}", "success"))
+
+        edge_data = gm.G.edges.get((source, target), {})
+        self.app.push_screen(
+            DeleteLinkConfirm(source, target, edge_data.get("relation", "")),
+            on_confirm,
+        )
+
+    def action_edit_relation(self) -> None:
+        """Редактировать relation выбранной связи."""
+        if not self._current_node:
+            return
+        link = self._selected_link()
+        if not link:
+            return
+
+        source = self._current_node if link.direction == "out" else link.node_id
+        target = link.node_id if link.direction == "out" else self._current_node
+
+        gm = self.app.graph_manager
+        if not gm.has_edge(source, target):
+            return
+
+        old_rel = gm.G.edges[source, target].get("relation", "")
+
+        def on_dialog(new_relation):
+            if new_relation is None:
+                return
+            attrs = {}
+            if new_relation:
+                attrs["relation"] = new_relation
+            gm.update_edge(source, target, **attrs)
+
+            self.show_links(
+                self._current_node,
+                gm.neighbors_out(self._current_node),
+                gm.neighbors_in(self._current_node),
+            )
+            self.post_message(StatusMessage(
+                f"Relation updated: {source} → {target}", "success"))
+
+        self.app.push_screen(
+            EditRelationDialog(source, target, old_rel), on_dialog)
 
     def clear(self) -> None:
-        """Очистить список (например, после удаления узла)."""
+        """Очистить список."""
         self._current_node = None
+        self._out_links = []
+        self._in_links = []
         empty = self.query_one("#links-empty", Label)
         empty.display = True
         for child in list(self.children):

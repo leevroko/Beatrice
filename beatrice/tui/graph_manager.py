@@ -104,6 +104,12 @@ class GraphManager:
             self.G.nodes[node_id][key] = value
         self._mark_changed()
 
+    def update_edge(self, source: str, target: str, **attrs) -> None:
+        """Обновить атрибуты ребра (мерж с существующими)."""
+        for key, value in attrs.items():
+            self.G.edges[source, target][key] = value
+        self._mark_changed()
+
     def node_attrs(self, node_id: str) -> dict:
         """Вернуть атрибуты узла."""
         return dict(self.G.nodes[node_id])
