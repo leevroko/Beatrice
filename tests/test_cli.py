@@ -14,7 +14,8 @@ import networkx as nx
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from beatrice.cli import (BeatriceError, load_graph, save_graph,
-    cmd_search, cmd_neighbors, cmd_orphans, cmd_islands, cmd_louvain, cmd_ring,
+    cmd_search, cmd_neighbors, cmd_orphans, cmd_roots, cmd_frontier,
+    cmd_islands, cmd_louvain, cmd_ring,
     cmd_add_node, cmd_rm_node,
     cmd_add_edge, cmd_rm_edge, cmd_edit_node, cmd_render,
     cmd_tag_add, cmd_tag_rm, cmd_tag_ls, cmd_tag_clear, apply_tag_filter)
@@ -379,6 +380,56 @@ class TestIslands(GraphTestCase):
         with capture_stdout() as out:
             cmd_islands(args)
         self.assertIn("Граф пуст", out.getvalue())
+
+
+# ─────────────────────────────────────────────────────────
+# Roots + Frontier
+# ─────────────────────────────────────────────────────────
+
+class TestRoots(GraphTestCase):
+    """Команда roots."""
+
+    def test_roots_found(self):
+        """connect ссылается на kafka, на connect никто не ссылается."""
+        args = FakeArgs(graph=self.path)
+        with capture_stdout() as out:
+            cmd_roots(args)
+        text = out.getvalue()
+        self.assertIn("connect", text)
+        self.assertNotIn("kafka", text)
+
+    def test_roots_none(self):
+        """После удаления connect — kafka становится корнем. Полностью изолируем."""
+        G = load_graph(self.path)
+        G.remove_node("kafka")
+        G.remove_node("connect")
+        save_graph(G, self.path)
+        args = FakeArgs(graph=self.path)
+        with capture_stdout() as out:
+            cmd_roots(args)
+        self.assertIn("нет", out.getvalue())
+
+
+class TestFrontier(GraphTestCase):
+    """Команда frontier."""
+
+    def test_frontier_found(self):
+        """zk и sr — на них ссылаются, но сами никуда не ссылаются."""
+        args = FakeArgs(graph=self.path)
+        with capture_stdout() as out:
+            cmd_frontier(args)
+        text = out.getvalue()
+        self.assertIn("zk", text)
+        self.assertIn("sr", text)
+        self.assertNotIn("kafka", text)
+        self.assertNotIn("connect", text)
+
+    def test_frontier_orphan_excluded(self):
+        """orphan не имеет in_degree, не входит в frontier."""
+        args = FakeArgs(graph=self.path)
+        with capture_stdout() as out:
+            cmd_frontier(args)
+        self.assertNotIn("orphan", out.getvalue())
 
 
 # ─────────────────────────────────────────────────────────

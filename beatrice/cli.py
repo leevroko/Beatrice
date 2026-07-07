@@ -295,6 +295,48 @@ def cmd_orphans(args):
         print(f"  {n:<25s} «{label}»   {desc}")
 
 
+def cmd_roots(args):
+    """Показать корневые узлы (out>0, in=0 — сами ссылаются, на них нет)."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+
+    roots = [n for n in G.nodes() if G.out_degree(n) > 0 and G.in_degree(n) == 0]
+
+    if not roots:
+        print("Корневых узлов нет — каждый узел на кого-то ссылается и на него ссылаются.")
+        return
+
+    print(f"Найдено корневых узлов: {len(roots)}\n")
+    for n in sorted(roots):
+        label = G.nodes[n].get("label", n)
+        type_str = G.nodes[n].get("type", "")
+        print(f"  {n:<25s} «{label}»" + (f"  {type_str}" if type_str else ""))
+
+
+def cmd_frontier(args):
+    """Показать пограничные узлы (in>0, out=0 — на них ссылаются, сами нет)."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+
+    frontier = [n for n in G.nodes() if G.in_degree(n) > 0 and G.out_degree(n) == 0]
+
+    if not frontier:
+        print("Пограничных узлов нет — каждый узел на кого-то ссылается и на него ссылаются.")
+        return
+
+    print(f"Найдено пограничных узлов: {len(frontier)}\n")
+    for n in sorted(frontier):
+        label = G.nodes[n].get("label", n)
+        type_str = G.nodes[n].get("type", "")
+        print(f"  {n:<25s} «{label}»" + (f"  {type_str}" if type_str else ""))
+
+
 def cmd_add_node(args):
     """Добавить узел (узлы)."""
     try:
@@ -702,6 +744,18 @@ def main():
                               help="Показать узлы-сироты (без связей)")
     p_orph.add_argument("graph", help="Путь к JSON-файлу графа")
     p_orph.set_defaults(func=cmd_orphans)
+
+    # roots
+    p_roots = gsub.add_parser("roots",
+                              help="Показать корневые узлы (out>0, in=0)")
+    p_roots.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_roots.set_defaults(func=cmd_roots)
+
+    # frontier
+    p_frontier = gsub.add_parser("frontier", aliases=["front"],
+                                 help="Показать пограничные узлы (in>0, out=0)")
+    p_frontier.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_frontier.set_defaults(func=cmd_frontier)
 
     # islands
     p_islands = gsub.add_parser("islands", aliases=["isl", "components"],
