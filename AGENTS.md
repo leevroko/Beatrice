@@ -96,6 +96,7 @@ python3 -m beatrice graph neighbors graph.json Kafka --direction all
 python3 -m beatrice graph add-node graph.json Redis --label Redis --type "БД"
 python3 -m beatrice graph edit-node graph.json Redis --desc "In-memory cache"
 python3 -m beatrice graph islands graph.json
+python3 -m beatrice graph louvain graph.json
 python3 -m beatrice graph ring graph.json Kafka --min 2 --max 4
 python3 -m beatrice graph render graph.json
 

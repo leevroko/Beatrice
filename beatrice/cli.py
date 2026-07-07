@@ -334,6 +334,40 @@ def cmd_islands(args):
     print(f"\nВсего островов: {len(components)}")
 
 
+def cmd_louvain(args):
+    """Показать Louvain-сообщества (кластеризация по плотности связей)."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+
+    from networkx.algorithms.community import louvain_communities
+
+    try:
+        communities = list(louvain_communities(G.to_undirected(), seed=args.seed))
+    except Exception as e:
+        print(f"Ошибка при вычислении сообществ: {e}")
+        sys.exit(1)
+
+    if not communities:
+        print("Граф пуст — нет узлов")
+        return
+
+    communities.sort(key=len, reverse=True)
+
+    for i, comm in enumerate(communities, 1):
+        size = len(comm)
+        size_word = "узел" if size == 1 else "узла" if 2 <= size <= 4 else "узлов"
+        print(f"\nСообщество #{i} ({size} {size_word}):")
+        for n in sorted(comm):
+            label = G.nodes[n].get("label", n)
+            type_str = G.nodes[n].get("type", "")
+            print(f"  {n:<20s} «{label}»" + (f"  {type_str}" if type_str else ""))
+
+    print(f"\nВсего сообществ: {len(communities)}")
+
+
 def cmd_ring(args):
     """Показать узлы на диапазоне глубин вокруг узла (BFS + XOR слоёв)."""
     try:
@@ -472,6 +506,8 @@ def main():
   beatrice graph edit-node graph.json  kafka  --label "Apache Kafka" --desc "New description"
   beatrice graph islands graph.json
   beatrice graph components graph.json
+  beatrice graph louvain graph.json
+  beatrice graph lv graph.json
   beatrice graph ring graph.json  kafka  --min 2 --max 4 --direction omnidirectional
   beatrice graph rng graph.json  kafka  --min 0 --max 1 --direction descending
 """,
@@ -514,6 +550,14 @@ def main():
                                 help="Показать изолированные кластеры (компоненты связности)")
     p_islands.add_argument("graph", help="Путь к JSON-файлу графа")
     p_islands.set_defaults(func=cmd_islands)
+
+    # louvain
+    p_louvain = gsub.add_parser("louvain", aliases=["lv"],
+                                help="Показать Louvain-сообщества (кластеризация по плотности связей)")
+    p_louvain.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_louvain.add_argument("--seed", type=int, default=42,
+                           help="Seed для воспроизводимости (по умолч. 42)")
+    p_louvain.set_defaults(func=cmd_louvain)
 
     # ring
     p_ring = gsub.add_parser("ring", aliases=["rng"],

@@ -14,6 +14,7 @@
 | 🧭 **Соседи узла** (входящие/исходящие) | `beatrice graph neighbors graph.json node` |
 | 👻 **Узлы-сироты** (без связей) | `beatrice graph orphans graph.json` |
 | 🏝️ **Острова** (изолированные кластеры) | `beatrice graph islands graph.json` |
+| 🧬 **Сообщества** (Louvain-кластеризация) | `beatrice graph louvain graph.json` |
 | 🔵 **Кольца** (узлы на диапазоне глубин) | `beatrice graph ring graph.json node --min 2 --max 4` |
 | ➕ **Добавить узел** с атрибутами | `beatrice graph add-node graph.json id --label ...` |
 | ❌ **Удалить узел** (со всеми связями) | `beatrice graph rm-node graph.json id` |
@@ -109,6 +110,7 @@ python3 beatrice/cli.py graph render graph.json
   beatrice graph add-node  <graph.json> <id...>   [--label --type --desc --color --size]
   beatrice graph edit-node <graph.json> <id>     [--label --type --desc --color --size]
   beatrice graph islands  <graph.json>
+  beatrice graph louvain <graph.json>     [--seed N]
   beatrice graph ring      <graph.json> <node>  --min N --max M [--direction]
   beatrice graph rm-node   <graph.json> <id...>
   beatrice graph add-edge  <graph.json> <src...> <tgt...> [--relation --weight]
@@ -173,6 +175,32 @@ $ beatrice graph islands graph.json
   orphan   «Сирота»          unknown
 
 Всего островов: 2
+```
+
+### `graph louvain`
+
+```bash
+beatrice graph louvain graph.json
+beatrice graph lv graph.json               # алиас
+beatrice graph louvain graph.json --seed 0  # кастомный seed
+```
+
+Кластеризация Louvain: разбивает граф на сообщества по плотности внутренних связей.
+Вывод — как у `islands`: сообщества отсортированы по размеру, узлы внутри — по алфавиту.
+
+```
+$ beatrice graph louvain graph.json
+
+Сообщество #1 (3 узла):
+  kafka    «Kafka»           брокер
+  connect  «Kafka Connect»   сервис
+  sr       «Schema Reg»      сервис
+
+Сообщество #2 (2 узла):
+  zk       «ZooKeeper»       координатор
+  orphan   «Сирота»          unknown
+
+Всего сообществ: 2
 ```
 
 ### `graph ring`

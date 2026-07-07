@@ -14,7 +14,8 @@ import networkx as nx
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from beatrice.cli import (BeatriceError, load_graph, save_graph,
-    cmd_search, cmd_neighbors, cmd_orphans, cmd_islands, cmd_ring, cmd_add_node, cmd_rm_node,
+    cmd_search, cmd_neighbors, cmd_orphans, cmd_islands, cmd_louvain, cmd_ring,
+    cmd_add_node, cmd_rm_node,
     cmd_add_edge, cmd_rm_edge, cmd_edit_node, cmd_render)
 
 
@@ -375,6 +376,58 @@ class TestIslands(GraphTestCase):
         with capture_stdout() as out:
             cmd_islands(args)
         self.assertIn("Граф пуст", out.getvalue())
+
+
+# ─────────────────────────────────────────────────────────
+# Louvain communities
+# ─────────────────────────────────────────────────────────
+
+class TestLouvain(GraphTestCase):
+    """Команда louvain."""
+
+    def test_louvain_communities(self):
+        """Проверить, что сообщества найдены."""
+        args = FakeArgs(graph=self.path, seed=42)
+        with capture_stdout() as out:
+            cmd_louvain(args)
+        text = out.getvalue()
+        self.assertIn("Сообщество #1", text)
+        self.assertIn("Всего сообществ", text)
+        # Убедимся, что узлы из графа отображаются
+        self.assertIn("kafka", text)
+        self.assertIn("orphan", text)
+
+    def test_louvain_single_node(self):
+        """Граф из одного узла — одно сообщество."""
+        G = nx.DiGraph()
+        G.add_node("single", label="Solo")
+        save_graph(G, self.path)
+        args = FakeArgs(graph=self.path, seed=42)
+        with capture_stdout() as out:
+            cmd_louvain(args)
+        text = out.getvalue()
+        self.assertIn("Сообщество #1", text)
+        self.assertIn("single", text)
+        self.assertIn("Всего сообществ: 1", text)
+
+    def test_louvain_empty(self):
+        """Пустой граф."""
+        G = nx.DiGraph()
+        save_graph(G, self.path)
+        args = FakeArgs(graph=self.path, seed=42)
+        with capture_stdout() as out:
+            cmd_louvain(args)
+        self.assertIn("Граф пуст", out.getvalue())
+
+    def test_louvain_deterministic_seed(self):
+        """Одинаковый seed → одинаковый результат."""
+        args1 = FakeArgs(graph=self.path, seed=42)
+        args2 = FakeArgs(graph=self.path, seed=42)
+        with capture_stdout() as out1:
+            cmd_louvain(args1)
+        with capture_stdout() as out2:
+            cmd_louvain(args2)
+        self.assertEqual(out1.getvalue(), out2.getvalue())
 
 
 # ─────────────────────────────────────────────────────────

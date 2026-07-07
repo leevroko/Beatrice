@@ -126,11 +126,12 @@ beatrice graph render graph.json
 
 | Команда | Назначение |
 |---------|-----------|
-| `beatrice stat <graph>` | Статистика (узлы, рёбра, плотность, сироты, PageRank, Louvain) |
+| `beatrice stat <graph>` | Статистика (узлы, рёбра, плотность, сироты, PageRank, Louvain, острова) |
 | `beatrice graph search <graph> <query>` | Поиск узлов по строке или regex |
 | `beatrice graph neighbors <graph> <node>` | Соседи узла (--direction out\|in\|all) |
 | `beatrice graph orphans <graph>` | Список сирот |
 | `beatrice graph islands <graph>` | Изолированные кластеры (компоненты связности) |
+| `beatrice graph louvain <graph>` | Louvain-сообщества (кластеризация по плотности) |
 | `beatrice graph ring <graph> <node> --min N --max M` | Узлы на диапазоне глубин (BFS + XOR слоёв) |
 | `beatrice graph add-node <graph> <id...>` | Добавить узел с --label,--type,--desc,--color,--size |
 | `beatrice graph edit-node <graph> <id>` | Изменить атрибуты узла (patch-only) |
