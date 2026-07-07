@@ -13,14 +13,21 @@
 | 🔍 **Поиск узлов** по строке или regex | `beatrice graph search graph.json "query"` |
 | 🧭 **Соседи узла** (входящие/исходящие) | `beatrice graph neighbors graph.json node` |
 | 👻 **Узлы-сироты** (без связей) | `beatrice graph orphans graph.json` |
+| 🌳 **Корни** (out>0, in=0) | `beatrice graph roots graph.json` |
+| 🚩 **Фронтир** (in>0, out=0) | `beatrice graph frontier graph.json` |
 | 🏝️ **Острова** (изолированные кластеры) | `beatrice graph islands graph.json` |
 | 🧬 **Сообщества** (Louvain-кластеризация) | `beatrice graph louvain graph.json` |
 | 🔵 **Кольца** (узлы на диапазоне глубин) | `beatrice graph ring graph.json node --min 2 --max 4` |
 | 🏷️ **Теги** (управление тегами узлов) | `beatrice graph tag add/rm/ls/clear graph.json ...` |
 | ➕ **Добавить узел** с атрибутами | `beatrice graph add-node graph.json id --label ...` |
+| ✏️ **Редактировать узел** (patch атрибутов) | `beatrice graph edit-node graph.json id --label ...` |
 | ❌ **Удалить узел** (со всеми связями) | `beatrice graph rm-node graph.json id` |
 | 🔗 **Добавить ребро** | `beatrice graph add-edge graph.json src tgt --relation ...` |
 | ✂️ **Удалить ребро** | `beatrice graph rm-edge graph.json src tgt` |
+| 🔀 **Пересечение графов** (G1 ∩ G2) | `beatrice graph intersect g1.json g2.json` |
+| 🔀 **Объединение графов** (G1 ∪ G2) | `beatrice graph union g1.json g2.json` |
+| 🔀 **Разность графов** (G1 ∖ G2) | `beatrice graph diff g1.json g2.json` |
+| 🔀 **Симметрическая разность** (G1 △ G2) | `beatrice graph symdiff g1.json g2.json` |
 | 📊 **Статистика графа** | `beatrice stat graph.json` |
 | 🌐 **Визуализация** в standalone HTML | `beatrice graph render graph.json` |
 
@@ -105,9 +112,11 @@ python3 beatrice/cli.py graph render graph.json
 
 ```
 Использование:
-  beatrice graph search    <graph.json> <query>   [--regex]
-  beatrice graph neighbors <graph.json> <node>    [--direction out|in|all]
+  beatrice graph search    <graph.json> <query>   [--regex] [--json]
+  beatrice graph neighbors <graph.json> <node>    [--direction out|in|all] [--json]
   beatrice graph orphans   <graph.json>
+  beatrice graph roots     <graph.json>
+  beatrice graph frontier  <graph.json>
   beatrice graph add-node  <graph.json> <id...>   [--label --type --desc --color --size]
   beatrice graph edit-node <graph.json> <id>     [--label --type --desc --color --size]
   beatrice graph islands  <graph.json>
@@ -117,6 +126,10 @@ python3 beatrice/cli.py graph render graph.json
   beatrice graph rm-node   <graph.json> <id...>
   beatrice graph add-edge  <graph.json> <src...> <tgt...> [--relation --weight]
   beatrice graph rm-edge   <graph.json> <src...> <tgt...>
+  beatrice graph intersect <graph1.json> <graph2.json>
+  beatrice graph union     <graph1.json> <graph2.json>
+  beatrice graph diff      <graph1.json> <graph2.json>
+  beatrice graph symdiff   <graph1.json> <graph2.json>
   beatrice graph render    <graph.json> [output]  [--theme dark|light]
   beatrice stat            <graph.json>
 ```
@@ -151,6 +164,23 @@ beatrice graph orph graph.json     # алиас
 ```
 
 Показывает узлы без единой связи (степень 0). Если сирот нет — сообщает об этом.
+
+### `graph roots`
+
+```bash
+beatrice graph roots graph.json
+```
+
+Показывает корневые узлы — которые сами ссылаются на других (out_degree > 0), но на них никто не ссылается (in_degree == 0).
+
+### `graph frontier`
+
+```bash
+beatrice graph frontier graph.json
+beatrice graph front graph.json      # алиас
+```
+
+Показывает пограничные узлы — на которых ссылаются (in_degree > 0), но сами никуда не ссылаются (out_degree == 0). Сироты не включаются.
 
 ### `graph islands`
 
@@ -320,6 +350,24 @@ beatrice graph rm-edge graph.json Kafka ZooKeeper
 beatrice graph rm-edge graph.json A B C D    # удалить A→B и C→D
 ```
 
+### `graph intersect` / `union` / `diff` / `symdiff`
+
+Операции над множествами графов. Принимают два графа, выводят JSON node-link результата в stdout.
+
+```bash
+beatrice graph intersect g1.json g2.json   # G1 ∩ G2 — узлы в обоих
+beatrice graph union     g1.json g2.json   # G1 ∪ G2 — все узлы из обоих
+beatrice graph diff      g1.json g2.json   # G1 ∖ G2 — узлы из G1, которых нет в G2
+beatrice graph symdiff   g1.json g2.json   # G1 △ G2 — узлы только в одном из графов
+```
+
+Результат можно пайпить в другие команды:
+
+```bash
+beatrice graph diff g1.json g2.json | beatrice graph ring - Kafka --min 0 --max 2
+beatrice graph intersect g1.json g2.json | beatrice graph stat -
+```
+
 ### `graph render`
 
 ```bash
@@ -346,6 +394,29 @@ beatrice stat graph.json
 ```
 
 Выводит: количество узлов, рёбер, плотность, сирот, Louvain-сообщества, PageRank топ-5.
+
+### `--json` / `--output-format`
+
+Команды `search`, `neighbors`, `orphans`, `roots`, `frontier`, `islands`, `louvain`, `ring` поддерживают
+вывод в формате JSON вместо текста — подграф в формате node-link со всеми атрибутами:
+
+```bash
+beatrice graph search graph.json "kafka" --json
+beatrice graph roots graph.json --output-format json | jq '.nodes[].id'
+```
+
+Флаг `--json` — сокращение для `--output-format json`.
+
+### `-` (stdin pipe)
+
+Любая команда может читать граф из stdin вместо файла, передав `-` как путь:
+
+```bash
+beatrice graph search g.json kafka --json | beatrice graph ring - Kafka --min 0 --max 1
+beatrice graph diff g1.json g2.json | beatrice graph tag add - MyNode mytag
+```
+
+Для мутирующих команд результат записывается в stdout (JSON node-link) вместо файла на диске.
 
 ### `tui`
 
@@ -429,7 +500,7 @@ python3 beatrice/cli.py graph render graph.json --theme dark
 python3 -m pytest tests/ -v
 ```
 
-60 тестов: CLI (39) + TUI (21): load/save, CRUD, history, undo/redo, messages.
+107 тестов: CLI (86) + TUI (21): load/save, CRUD, history, undo/redo, messages, islands, tags, ring, louvain, set operations, json output, stdin pipe.
 
 ---
 

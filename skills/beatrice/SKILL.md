@@ -130,6 +130,8 @@ beatrice graph render graph.json
 | `beatrice graph search <graph> <query>` | Поиск узлов по строке или regex |
 | `beatrice graph neighbors <graph> <node>` | Соседи узла (--direction out\|in\|all) |
 | `beatrice graph orphans <graph>` | Список сирот |
+| `beatrice graph roots <graph>` | Корневые узлы (out>0, in=0) |
+| `beatrice graph frontier <graph>` | Пограничные узлы (in>0, out=0) |
 | `beatrice graph islands <graph>` | Изолированные кластеры (компоненты связности) |
 | `beatrice graph louvain <graph>` | Louvain-сообщества (кластеризация по плотности) |
 | `beatrice graph ring <graph> <node> --min N --max M` | Узлы на диапазоне глубин (BFS + XOR слоёв) |
@@ -142,6 +144,10 @@ beatrice graph render graph.json
 | `beatrice graph rm-node <graph> <id...>` | Удалить узел |
 | `beatrice graph add-edge <graph> <src...> <tgt...>` | Добавить ребро с --relation,--weight |
 | `beatrice graph rm-edge <graph> <src...> <tgt...>` | Удалить ребро |
+| `beatrice graph intersect <g1> <g2>` | Пересечение графов (G1 ∩ G2) |
+| `beatrice graph union <g1> <g2>` | Объединение графов (G1 ∪ G2) |
+| `beatrice graph diff <g1> <g2>` | Разность графов (G1 ∖ G2) |
+| `beatrice graph symdiff <g1> <g2>` | Симметрическая разность (G1 △ G2) |
 | `beatrice graph render <graph>` | Сгенерировать HTML-визуализацию (--theme dark\|light) |
 
 ## Источник

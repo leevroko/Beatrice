@@ -98,6 +98,9 @@ python3 -m beatrice graph edit-node graph.json Redis --desc "In-memory cache"
 python3 -m beatrice graph islands graph.json
 python3 -m beatrice graph louvain graph.json
 python3 -m beatrice graph ring graph.json Kafka --min 2 --max 4
+python3 -m beatrice graph roots graph.json
+python3 -m beatrice graph frontier graph.json
+python3 -m beatrice graph intersect g1.json g2.json
 python3 -m beatrice graph tag add graph.json Kafka streaming
 python3 -m beatrice graph tag ls graph.json
 python3 -m beatrice graph render graph.json
