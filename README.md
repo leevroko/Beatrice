@@ -37,11 +37,20 @@
 
 ### Установка
 
+**Рекомендуемый способ:** установка пакета через pip в режиме editable для разработки:
+
 ```bash
-pip install networkx
+git clone <repo_url>
+cd Beatrice
+pip install -e .           # только CLI
+pip install -e ".[tui]"    # CLI + TUI
 ```
 
-Beatrice — это один файл, не требует дополнительной установки пакета.
+После установки доступны две глобальные команды:
+- `beatrice` — CLI
+- `beatrice-tui` — TUI
+
+**Зависимости:** ядро требует только `networkx`. TUI-режим — `textual` и `rapidfuzz`.
 
 ### Создать первый граф
 
@@ -68,7 +77,7 @@ python3 create_graph.py
 ### Запросить статистику
 
 ```bash
-python3 beatrice/cli.py stat graph.json
+beatrice stat graph.json
 ```
 
 ```
@@ -82,26 +91,26 @@ python3 beatrice/cli.py stat graph.json
 ### Найти сирот
 
 ```bash
-python3 beatrice/cli.py graph search graph.json "Orphan"
+beatrice graph search graph.json "Orphan"
 ```
 
 ### Добавить узел
 
 ```bash
-python3 beatrice/cli.py graph add-node graph.json Redis \
+beatrice graph add-node graph.json Redis \
   --label Redis --type "БД" --desc "In-memory cache"
 ```
 
 ### Посмотреть соседей
 
 ```bash
-python3 beatrice/cli.py graph neighbors graph.json Kafka --direction all
+beatrice graph neighbors graph.json Kafka --direction all
 ```
 
 ### Сгенерировать HTML-визуализацию
 
 ```bash
-python3 beatrice/cli.py graph render graph.json
+beatrice graph render graph.json
 ```
 
 Открой `graph.html` в браузере — интерактивный force-directed граф с zoom/pan/tooltip/легендой.
