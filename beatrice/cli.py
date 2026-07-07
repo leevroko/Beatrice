@@ -10,7 +10,8 @@ import json
 import re
 import sys
 from pathlib import Path
-from argparse import ArgumentParser, RawDescriptionHelpFormatter
+from argparse import ArgumentParser, RawDescriptionHelpFormatter, Namespace
+import shlex
 
 # Добавляем корень проекта в sys.path для импорта модулей
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -111,8 +112,11 @@ def apply_tag_filter(G: nx.DiGraph, tags: list[str], mode: str) -> set[str]:
         if mode == "any":
             if node_tags & query_tags:
                 result.add(n)
-        else:  # all
+        elif mode == "all":
             if query_tags <= node_tags:
+                result.add(n)
+        elif mode == "none":
+            if not (node_tags & query_tags):
                 result.add(n)
     return result
 
@@ -196,19 +200,68 @@ def cmd_tag_ls(args):
         print(f"Теги узла «{nid}»:")
         for t in sorted(tags):
             print(f"  {t}")
-    else:
-        # Все теги графа с частотой
-        from collections import Counter
-        counter: Counter[str] = Counter()
-        for n in G.nodes():
-            for t in G.nodes[n].get("tags", []):
-                counter[t] += 1
-        if not counter:
-            print("В графе нет тегов")
+        return
+
+    from collections import Counter
+
+    # --by-community
+    if args.by_community:
+        from networkx.algorithms.community import louvain_communities
+        try:
+            communities = list(louvain_communities(G.to_undirected(), seed=42))
+        except Exception as e:
+            print(f"Ошибка при вычислении сообществ: {e}")
+            sys.exit(1)
+        if not communities:
+            print("Граф пуст")
             return
-        print(f"{len(counter)} тегов в графе:")
+        for i, comm in enumerate(communities, 1):
+            comm_counter: Counter[str] = Counter()
+            for n in comm:
+                for t in G.nodes[n].get("tags", []):
+                    comm_counter[t] += 1
+            # Определяем имя сообщества из первого подходящего type
+            first_node = next(iter(comm))
+            comm_label = f"Сообщество #{i}"
+            print(f"\n{comm_label} ({len(comm)} узлов):")
+            for t, cnt in sorted(comm_counter.items(), key=lambda x: -x[1]):
+                print(f"  {t:<25s} {cnt}")
+        return
+
+    # Сбор тегов
+    counter: Counter[str] = Counter()
+    for n in G.nodes():
+        for t in G.nodes[n].get("tags", []):
+            counter[t] += 1
+
+    if not counter:
+        print("В графе нет тегов")
+        return
+
+    # --tag T1 T2 — пересечение (сколько узлов имеют ВСЕ указанные теги)
+    if args.tag:
+        query = set(args.tag)
+        if args.counts:
+            # Показать статистику по пересечению
+            total = 0
+            for n in G.nodes():
+                node_tags = set(G.nodes[n].get("tags", []))
+                if query <= node_tags:
+                    total += 1
+            tag_list = ", ".join(args.tag)
+            print(f"Узлы с тегами [{tag_list}]: {total}")
+            return
+
+    # --counts (без --tag)
+    if args.counts:
         for t, cnt in sorted(counter.items(), key=lambda x: -x[1]):
-            print(f"  {t:<25s} ({cnt} узел{'а' if 2 <= cnt <= 4 else 'ов' if cnt >= 5 else ''})")
+            print(f"{t}: {cnt}")
+        return
+
+    # Обычный вывод
+    print(f"{len(counter)} тегов в графе:")
+    for t, cnt in sorted(counter.items(), key=lambda x: -x[1]):
+        print(f"  {t:<25s} ({cnt} узел{'а' if 2 <= cnt <= 4 else 'ов' if cnt >= 5 else ''})")
 
 
 def cmd_tag_clear(args):
@@ -794,15 +847,11 @@ def cmd_symdiff(args):
 
 
 def cmd_edit_node(args):
-    """Изменить атрибуты существующего узла (patch-only)."""
+    """Изменить атрибуты узлов (patch-only)."""
     try:
         G = load_graph(args.graph)
     except BeatriceError as e:
         print(f"Ошибка: {e}")
-        sys.exit(1)
-
-    if args.id not in G:
-        print(f"Ошибка: узел «{args.id}» не найден в графе")
         sys.exit(1)
 
     # Собираем только те атрибуты, что явно переданы
@@ -822,11 +871,18 @@ def cmd_edit_node(args):
         print("Ничего не изменено")
         return
 
-    # Запоминаем старые значения для diff
-    old = {k: G.nodes[args.id].get(k, "") for k in changes}
+    edited = []
+    for nid in args.ids:
+        if nid not in G:
+            print(f"Предупреждение: узел «{nid}» не найден — пропускаю")
+            continue
+        old = {k: G.nodes[nid].get(k, "") for k in changes}
+        G.nodes[nid].update(changes)
+        edited.append((nid, old))
 
-    # Применяем изменения
-    G.nodes[args.id].update(changes)
+    if not edited:
+        print("Ничего не изменено")
+        return
 
     try:
         save_or_output(G, args.graph)
@@ -834,12 +890,12 @@ def cmd_edit_node(args):
         print(f"Ошибка при сохранении: {e}")
         sys.exit(1)
 
-    # Выводим diff
-    print(f"Изменён узел {args.id}:")
-    for k in changes:
-        old_val = str(old[k]) if old[k] else "(пусто)"
-        new_val = str(changes[k]) if changes[k] else "(пусто)"
-        print(f"  {k:<8s} {old_val} → {new_val}")
+    for nid, old in edited:
+        print(f"Изменён узел {nid}:")
+        for k in changes:
+            old_val = str(old[k]) if old[k] else "(пусто)"
+            new_val = str(changes[k]) if changes[k] else "(пусто)"
+            print(f"  {k:<8s} {old_val} → {new_val}")
 
 
 def main():
@@ -884,7 +940,7 @@ def main():
     p_search.add_argument("--regex", "-r", action="store_true", help="Интерпретировать pattern как regex")
     p_search.add_argument("--tag", action="append", default=[],
                           help="Фильтр по тегу (можно несколько)")
-    p_search.add_argument("--tag-mode", choices=["any", "all"], default="any",
+    p_search.add_argument("--tag-mode", choices=["any", "all", "none"], default="any",
                           help="Режим фильтрации тегов: any (любой) или all (все)")
     p_search.add_argument("--output-format", choices=["text", "json"], default="text",
                           help="Формат вывода")
@@ -902,7 +958,7 @@ def main():
                        help="Направление: out (на кого указывает), in (кто указывает), all (все)")
     p_nei.add_argument("--tag", action="append", default=[],
                        help="Фильтр по тегу (можно несколько)")
-    p_nei.add_argument("--tag-mode", choices=["any", "all"], default="any",
+    p_nei.add_argument("--tag-mode", choices=["any", "all", "none"], default="any",
                        help="Режим фильтрации тегов: any (любой) или all (все)")
     p_nei.add_argument("--output-format", choices=["text", "json"], default="text",
                        help="Формат вывода")
@@ -947,7 +1003,7 @@ def main():
     p_islands.add_argument("graph", help="Путь к JSON-файлу графа")
     p_islands.add_argument("--tag", action="append", default=[],
                           help="Фильтр по тегу (можно несколько)")
-    p_islands.add_argument("--tag-mode", choices=["any", "all"], default="any",
+    p_islands.add_argument("--tag-mode", choices=["any", "all", "none"], default="any",
                           help="Режим фильтрации тегов: any (любой) или all (все)")
     p_islands.add_argument("--output-format", choices=["text", "json"], default="text",
                            help="Формат вывода")
@@ -978,7 +1034,7 @@ def main():
                         default="omnidirectional", help="Направление обхода")
     p_ring.add_argument("--tag", action="append", default=[],
                         help="Фильтр по тегу (можно несколько)")
-    p_ring.add_argument("--tag-mode", choices=["any", "all"], default="any",
+    p_ring.add_argument("--tag-mode", choices=["any", "all", "none"], default="any",
                         help="Режим фильтрации тегов: any (любой) или all (все)")
     p_ring.add_argument("--output-format", choices=["text", "json"], default="text",
                         help="Формат вывода")
@@ -1026,7 +1082,7 @@ def main():
     p_editn = gsub.add_parser("edit-node", aliases=["en"],
                               help="Изменить атрибуты узла (patch-only)")
     p_editn.add_argument("graph", help="Путь к JSON-файлу графа")
-    p_editn.add_argument("id", help="ID узла для редактирования")
+    p_editn.add_argument("--ids", nargs="+", required=True, help="ID узлов для редактирования")
     p_editn.add_argument("--label", "-l", help="Новая метка узла")
     p_editn.add_argument("--type", "-t", help="Новый тип узла")
     p_editn.add_argument("--desc", "-d", help="Новое описание узла")
@@ -1055,6 +1111,12 @@ def main():
     p_tag_ls = tsub.add_parser("ls", help="Показать теги")
     p_tag_ls.add_argument("graph", help="Путь к JSON-файлу графа")
     p_tag_ls.add_argument("id", nargs="?", default=None, help="ID узла (опционально)")
+    p_tag_ls.add_argument("--counts", action="store_true",
+                          help="Показать теги в формате tag: count (по одному на строку)")
+    p_tag_ls.add_argument("--tag", action="append", default=[],
+                          help="Фильтр: показать пересечение указанных тегов")
+    p_tag_ls.add_argument("--by-community", action="store_true",
+                          help="Показать теги по Louvain-сообществам")
     p_tag_ls.set_defaults(func=cmd_tag_ls)
 
     p_tag_clear = tsub.add_parser("clear", help="Очистить все теги узла")
@@ -1096,6 +1158,12 @@ def main():
     p_tui = sub.add_parser("tui", help="Запустить TUI для графа знаний")
     p_tui.add_argument("graph", help="Путь к JSON-файлу графа")
     p_tui.set_defaults(func=cmd_tui)
+
+    # batch
+    p_batch = sub.add_parser("batch", help="Пакетное выполнение операций над графом")
+    p_batch.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_batch.add_argument("commands", help="Файл с командами или «-» для stdin")
+    p_batch.set_defaults(func=cmd_batch)
 
     # --- stat (сокращение для быстрого просмотра) ---
     stat = sub.add_parser("stat", help="Статистика графа")
@@ -1399,6 +1467,189 @@ window.addEventListener("resize",()=>{{
     Path(output).write_text(html, encoding="utf-8")
     print(f"✅ HTML: {Path(output).resolve()}")
     print(f"   Узлов: {len(nodes_data)}, Рёбер: {len(edges_data)}, Сирот: {len(orphans)}")
+
+
+def cmd_batch(args):
+    """Пакетное выполнение операций над графом."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.commands == "-":
+        lines = sys.stdin.readlines()
+    else:
+        lines = Path(args.commands).read_text(encoding="utf-8").splitlines()
+
+    known_commands = {
+        "add-node": cmd_add_node,
+        "rm-node": cmd_rm_node,
+        "edit-node": cmd_edit_node,
+        "add-edge": cmd_add_edge,
+        "rm-edge": cmd_rm_edge,
+        "tag": cmd_tag_add,
+    }
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = shlex.split(line)
+        if not parts:
+            continue
+        cmd_name = parts[0]
+
+        if cmd_name not in known_commands:
+            print(f"Предупреждение: неизвестная команда «{cmd_name}» — пропускаю", file=sys.stderr)
+            print(f"  Строка: {line}", file=sys.stderr)
+            continue
+
+        # Строим FakeArgs для subparser marshalling
+        # batch всегда оперирует над загруженным графом в памяти, запись — один раз в конце
+        fake = Namespace()
+        fake.graph = args.graph  # все команды используют args.graph
+
+        if cmd_name == "add-node":
+            parser = ArgumentParser()
+            parser.add_argument("ids", nargs="+")
+            parser.add_argument("--label", "-l", default=None)
+            parser.add_argument("--type", "-t", default=None)
+            parser.add_argument("--desc", "-d", default=None)
+            parser.add_argument("--color", "-c", default=None)
+            parser.add_argument("--size", type=float, default=None)
+            subargs = parser.parse_args(parts[1:])
+            fake.ids = subargs.ids
+            fake.label = subargs.label
+            fake.type = subargs.type
+            fake.desc = subargs.desc
+            fake.color = subargs.color
+            fake.size = subargs.size
+            _batch_cmd_add_node(G, fake)
+
+        elif cmd_name == "add-edge":
+            parser = ArgumentParser()
+            parser.add_argument("sources", nargs="+")
+            parser.add_argument("targets", nargs="+")
+            parser.add_argument("--relation", "-r", default=None)
+            parser.add_argument("--weight", type=float, default=None)
+            subargs = parser.parse_args(parts[1:])
+            fake.sources = subargs.sources
+            fake.targets = subargs.targets
+            fake.relation = subargs.relation
+            fake.weight = subargs.weight
+            _batch_cmd_add_edge(G, fake)
+
+        elif cmd_name == "edit-node":
+            parser = ArgumentParser()
+            parser.add_argument("--ids", nargs="+", required=True)
+            parser.add_argument("--label", "-l", default=None)
+            parser.add_argument("--type", "-t", default=None)
+            parser.add_argument("--desc", "-d", default=None)
+            parser.add_argument("--color", "-c", default=None)
+            parser.add_argument("--size", type=float, default=None)
+            subargs = parser.parse_args(parts[1:])
+            fake.ids = subargs.ids
+            fake.label = subargs.label
+            fake.type = subargs.type
+            fake.desc = subargs.desc
+            fake.color = subargs.color
+            fake.size = subargs.size
+            _batch_cmd_edit_node(G, fake)
+
+        elif cmd_name == "tag":
+            parser = ArgumentParser()
+            parser.add_argument("subcmd", choices=["add"])
+            parser.add_argument("ids", nargs="+")
+            parser.add_argument("tags", nargs="+", metavar="tag")
+            subargs = parser.parse_args(parts[1:])
+            if subargs.subcmd == "add":
+                for nid in subargs.ids:
+                    if nid not in G:
+                        print(f"Предупреждение: узел «{nid}» не найден — пропускаю", file=sys.stderr)
+                        continue
+                    tags = set(G.nodes[nid].get("tags", []))
+                    before = len(tags)
+                    tags.update(subargs.tags)
+                    G.nodes[nid]["tags"] = list(tags)
+                    added = len(tags) - before
+                    print(f"  {nid}: добавлено {added} тегов")
+
+    # Сохраняем
+    try:
+        save_or_output(G, args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка при сохранении: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _batch_cmd_add_node(G, fake):
+    """Добавить узлы (batch — сразу в G, без save)."""
+    for nid in fake.ids:
+        if nid in G:
+            print(f"Предупреждение: узел «{nid}» уже существует — пропускаю")
+            continue
+        attrs = {}
+        if fake.label:
+            attrs["label"] = fake.label
+        if fake.type:
+            attrs["type"] = fake.type
+        if fake.desc:
+            attrs["desc"] = fake.desc
+        if fake.color:
+            attrs["color"] = fake.color
+        if fake.size:
+            attrs["size"] = fake.size
+        G.add_node(nid, **attrs)
+        print(f"  + {nid}")
+
+
+def _batch_cmd_add_edge(G, fake):
+    """Добавить рёбра (batch — сразу в G, без save)."""
+    if len(fake.sources) != len(fake.targets):
+        print(f"Ошибка: количество источников ({len(fake.sources)}) не совпадает с количеством целей ({len(fake.targets)})")
+        return
+    for src, tgt in zip(fake.sources, fake.targets):
+        if src not in G:
+            print(f"Предупреждение: узел-источник «{src}» не найден — пропускаю")
+            continue
+        if tgt not in G:
+            print(f"Предупреждение: узел-цель «{tgt}» не найден — пропускаю")
+            continue
+        if G.has_edge(src, tgt):
+            print(f"Предупреждение: ребро {src}→{tgt} уже существует — пропускаю")
+            continue
+        attrs = {}
+        if fake.relation:
+            attrs["relation"] = fake.relation
+        if fake.weight:
+            attrs["weight"] = fake.weight
+        G.add_edge(src, tgt, **attrs)
+        rel = fake.relation or ""
+        print(f"  + {src} → {tgt}  [{rel}]")
+
+
+def _batch_cmd_edit_node(G, fake):
+    """Изменить узлы (batch — сразу в G, без save)."""
+    changes = {}
+    if fake.label is not None:
+        changes["label"] = fake.label
+    if fake.type is not None:
+        changes["type"] = fake.type
+    if fake.desc is not None:
+        changes["desc"] = fake.desc
+    if fake.color is not None:
+        changes["color"] = fake.color
+    if fake.size is not None:
+        changes["size"] = fake.size
+    if not changes:
+        return
+    for nid in fake.ids:
+        if nid not in G:
+            print(f"Предупреждение: узел «{nid}» не найден — пропускаю")
+            continue
+        G.nodes[nid].update(changes)
+        print(f"  ✎ {nid}")
 
 
 if __name__ == "__main__":

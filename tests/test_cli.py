@@ -56,6 +56,8 @@ class FakeArgs:
         self.tag = []
         self.tag_mode = "any"
         self.output_format = "text"
+        self.counts = False
+        self.by_community = False
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -278,17 +280,16 @@ class TestEditNode(GraphTestCase):
     """Команда edit-node."""
 
     def test_edit_label(self):
-        args = FakeArgs(graph=self.path, id="kafka",
+        args = FakeArgs(graph=self.path, ids=["kafka"],
                         label="Apache Kafka", type=None, desc=None,
                         color=None, size=None)
         cmd_edit_node(args)
         G = load_graph(self.path)
         self.assertEqual(G.nodes["kafka"]["label"], "Apache Kafka")
-        # Другие атрибуты не должны измениться
         self.assertEqual(G.nodes["kafka"]["type"], "брокер")
 
     def test_edit_multiple_attrs(self):
-        args = FakeArgs(graph=self.path, id="kafka",
+        args = FakeArgs(graph=self.path, ids=["kafka"],
                         label="Apache Kafka", type="streaming",
                         desc="New desc", color="#FF0000", size=15.0)
         cmd_edit_node(args)
@@ -299,18 +300,27 @@ class TestEditNode(GraphTestCase):
         self.assertEqual(G.nodes["kafka"]["color"], "#FF0000")
         self.assertEqual(G.nodes["kafka"]["size"], 15.0)
 
+    def test_edit_multiple_nodes(self):
+        """Редактирование нескольких узлов одной командой."""
+        args = FakeArgs(graph=self.path, ids=["kafka", "zk"],
+                        label="Edited", type=None, desc=None,
+                        color=None, size=None)
+        cmd_edit_node(args)
+        G = load_graph(self.path)
+        self.assertEqual(G.nodes["kafka"]["label"], "Edited")
+        self.assertEqual(G.nodes["zk"]["label"], "Edited")
+
     def test_edit_nonexistent(self):
-        args = FakeArgs(graph=self.path, id="no-such",
+        """Несуществующий узел пропускается с предупреждением, не exit."""
+        args = FakeArgs(graph=self.path, ids=["no-such"],
                         label="X", type=None, desc=None,
                         color=None, size=None)
         with capture_stdout() as out:
-            with self.assertRaises(SystemExit):
-                cmd_edit_node(args)
-        self.assertIn("не найден", out.getvalue())
+            cmd_edit_node(args)
+        self.assertIn("Предупреждение", out.getvalue())
 
     def test_edit_no_changes(self):
-        """Без флагов — ничего не меняется."""
-        args = FakeArgs(graph=self.path, id="kafka",
+        args = FakeArgs(graph=self.path, ids=["kafka"],
                         label=None, type=None, desc=None,
                         color=None, size=None)
         with capture_stdout() as out:
@@ -320,14 +330,12 @@ class TestEditNode(GraphTestCase):
         self.assertEqual(G.nodes["kafka"]["label"], "Kafka")
 
     def test_edit_clear_field(self):
-        """Пустая строка сбрасывает атрибут."""
-        args = FakeArgs(graph=self.path, id="kafka",
+        args = FakeArgs(graph=self.path, ids=["kafka"],
                         label=None, type="", desc=None,
                         color=None, size=None)
         cmd_edit_node(args)
         G = load_graph(self.path)
         self.assertEqual(G.nodes["kafka"]["type"], "")
-        # label не должен измениться
         self.assertEqual(G.nodes["kafka"]["label"], "Kafka")
 
 

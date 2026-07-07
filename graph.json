@@ -658,6 +658,20 @@
       "type": "инструмент",
       "desc": "Потоковая обработка с графами состояний",
       "id": "KafkaStreaming"
+    },
+    {
+      "label": "My Node",
+      "type": "test",
+      "color": "#FF0000",
+      "size": 20.0,
+      "id": "MyNode"
+    },
+    {
+      "label": "Another",
+      "type": "test",
+      "color": "#FF0000",
+      "size": 20.0,
+      "id": "AnotherNode"
     }
   ],
   "edges": [
@@ -1265,6 +1279,11 @@
       "relation": "содержит",
       "source": "OrchestratorAgent",
       "target": "EvaluatorAgent"
+    },
+    {
+      "relation": "links",
+      "source": "MyNode",
+      "target": "AnotherNode"
     }
   ]
 }
