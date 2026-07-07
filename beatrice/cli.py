@@ -704,8 +704,29 @@ def cmd_render(args):
         bg = "#1a1a2e"; fg = "#eee"; panel_bg = "#16213e"
         panel_border = "#0f3460"; edge_color = "#555"; label_color = "#888"
 
+    # Louvain-сообщества для опциональной раскраски
+    try:
+        from networkx.algorithms.community import louvain_communities
+        communities = list(louvain_communities(G.to_undirected(), seed=42))
+        # Узлу → номер сообщества
+        node_community = {}
+        for i, comm in enumerate(communities):
+            for n in comm:
+                node_community[n] = i
+        louvain_available = True
+    except Exception:
+        node_community = {}
+        louvain_available = False
+
+    # Палитра цветов для сообществ (12 оттенков, циклически)
+    louvain_palette = [
+        "#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4",
+        "#42d4f4", "#f032e6", "#bfef45", "#fabed4", "#469990", "#dcbeff",
+    ]
+
     nodes_data = []
     for n in G.nodes():
+        comm_idx = node_community.get(n, 0)
         nodes_data.append({
             "id": n,
             "label": G.nodes[n].get("label", n),
@@ -714,6 +735,8 @@ def cmd_render(args):
             "color": G.nodes[n].get("color", "#999"),
             "size": G.nodes[n].get("size", 10),
             "isOrphan": n in orphans,
+            "community": comm_idx,
+            "communityColor": louvain_palette[comm_idx % len(louvain_palette)],
         })
 
     edges_data = []
@@ -735,6 +758,7 @@ def cmd_render(args):
     json_edges = json.dumps(edges_data, ensure_ascii=False)
     json_orphans = json.dumps(list(orphans))
     json_types = json.dumps(types, ensure_ascii=False)
+    json_louvain = json.dumps(louvain_available)
 
     html = f"""<!DOCTYPE html>
 <html lang="ru">
@@ -776,6 +800,7 @@ def cmd_render(args):
   <button onclick="resetZoom()">⟲ Сбросить</button>
   <button onclick="toggleOrphans()">👻 Сироты</button>
   <button onclick="toggleDirection()">↔ Направления</button>
+  <button onclick="toggleLouvain()">🧬 Сообщества</button>
 </div>
 <div class="legend" id="legend"></div>
 <div class="tooltip" id="tooltip"></div>
@@ -785,6 +810,7 @@ const nodesData = {json_nodes};
 const edgesData = {json_edges};
 const orphans = {json_orphans};
 const typeColors = {json_types};
+const louvainAvailable = {json_louvain};
 const width = window.innerWidth, height = window.innerHeight;
 document.getElementById('info').textContent =
   `${{nodesData.length}} узлов · ${{edgesData.length}} рёбер · ${{orphans.length}} сирот`;
@@ -843,6 +869,24 @@ let showOrphans=true;
 function toggleOrphans(){{showOrphans=!showOrphans;node.style("opacity",d=>showOrphans?1:(d.isOrphan?0:1));}}
 let showDir=true;
 function toggleDirection(){{showDir=!showDir;link.attr("marker-end",showDir?"url(#arrow)":null);}}
+let showLouvain=false;
+function toggleLouvain(){{
+    showLouvain=!showLouvain;
+    node.selectAll("circle").transition().duration(300)
+        .attr("fill",d=>showLouvain?d.communityColor:d.color);
+    if(showLouvain){{
+        // Обновить легенду на сообщества
+        const used = [...new Set(nodesData.filter(d=>louvainAvailable).map(d=>d.community))];
+        const palette = {json.dumps(louvain_palette, ensure_ascii=False)};
+        d3.select("#legend").html(
+            used.map(i=>`<div class="legend-item"><span class="legend-dot" style="background:${{palette[i%palette.length]}}"></span>Сообщество #${{i+1}}</div>`).join(''));
+    }}else{{
+        // Восстановить легенду по типам
+        d3.select("#legend").html(
+            Object.entries(typeColors).filter(([k])=>k!=='unknown').map(([t,c])=>
+                `<div class="legend-item"><span class="legend-dot" style="background:${{c}}"></span>${{t}}</div>`
+            ).join(''));
+    }}}}
 d3.select("body").on("click",(e)=>{{if(!e.target.closest("g"))tooltip.style("display","none");}});
 window.addEventListener("resize",()=>{{
     const w=window.innerWidth,h=window.innerHeight;
