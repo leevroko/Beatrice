@@ -299,6 +299,162 @@ def cmd_rm_edge(args):
         print("Ничего не удалено")
 
 
+def cmd_islands(args):
+    """Показать изолированные кластеры (компоненты слабой связности)."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+
+    from networkx.algorithms.components import weakly_connected_components
+
+    orphans_set = set(n for n, d in G.degree() if d == 0)
+    components = sorted(
+        weakly_connected_components(G),
+        key=len,
+        reverse=True,
+    )
+
+    if not components:
+        print("Граф пуст — нет узлов")
+        return
+
+    for i, comp in enumerate(components, 1):
+        size = len(comp)
+        is_orphan = all(n in orphans_set for n in comp)
+        size_word = "узел" if size == 1 else "узла" if 2 <= size <= 4 else "узлов"
+        orphan_tag = " 👻 сирота" if is_orphan else ""
+        print(f"\nОстров #{i} ({size} {size_word}{orphan_tag}):")
+        for n in sorted(comp):
+            label = G.nodes[n].get("label", n)
+            type_str = G.nodes[n].get("type", "")
+            print(f"  {n:<20s} «{label}»" + (f"  {type_str}" if type_str else ""))
+
+    print(f"\nВсего островов: {len(components)}")
+
+
+def cmd_ring(args):
+    """Показать узлы на диапазоне глубин вокруг узла (BFS + XOR слоёв)."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+
+    if args.node not in G:
+        print(f"Ошибка: узел «{args.node}» не найден в графе")
+        sys.exit(1)
+
+    if args.min < 0:
+        print("Ошибка: --min не может быть отрицательным")
+        sys.exit(1)
+
+    if args.max < args.min:
+        print("Ошибка: --max не может быть меньше --min")
+        sys.exit(1)
+
+    from collections import deque
+
+    # BFS от source node, собираем {node: depth}
+    depths: dict[str, int] = {}
+    q = deque()
+    q.append((args.node, 0))
+
+    while q:
+        cur, d = q.popleft()
+        if cur in depths:
+            continue
+        depths[cur] = d
+        if d >= args.max:
+            continue
+        if args.direction in ("omnidirectional", "descending"):
+            for nxt in G.successors(cur):
+                if nxt not in depths:
+                    q.append((nxt, d + 1))
+        if args.direction in ("omnidirectional", "ascending"):
+            for nxt in G.predecessors(cur):
+                if nxt not in depths:
+                    q.append((nxt, d + 1))
+
+    # Убираем сам node (глубина 0), фильтруем по диапазону
+    by_depth: dict[int, list[str]] = {}
+    for nid, d in depths.items():
+        if d == 0:
+            continue
+        if args.min < d <= args.max:
+            by_depth.setdefault(d, []).append(nid)
+
+    if not by_depth:
+        dir_label = {"descending": "нисходящем", "ascending": "восходящем", "omnidirectional": "всенаправленном"}
+        print(f"Нет узлов на глубинах {args.min + 1}–{args.max} от узла «{args.node}» ({dir_label[args.direction]})")
+        return
+
+    dir_label = {"descending": "descending", "ascending": "ascending", "omnidirectional": "all"}
+    print(f"\nКольца {args.min + 1}–{args.max} от узла «{args.node}» ({dir_label[args.direction]}):")
+
+    total = 0
+    for depth in sorted(by_depth.keys()):
+        nodes = sorted(by_depth[depth])
+        print(f"\nГлубина {depth}:")
+        for n in nodes:
+            label = G.nodes[n].get("label", n)
+            type_str = G.nodes[n].get("type", "")
+            print(f"  {n:<20s} «{label}»" + (f"  {type_str}" if type_str else ""))
+        total += len(nodes)
+
+    print(f"\nНайдено: {total} узлов")
+
+
+def cmd_edit_node(args):
+    """Изменить атрибуты существующего узла (patch-only)."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+
+    if args.id not in G:
+        print(f"Ошибка: узел «{args.id}» не найден в графе")
+        sys.exit(1)
+
+    # Собираем только те атрибуты, что явно переданы
+    changes = {}
+    if args.label is not None:
+        changes["label"] = args.label
+    if args.type is not None:
+        changes["type"] = args.type
+    if args.desc is not None:
+        changes["desc"] = args.desc
+    if args.color is not None:
+        changes["color"] = args.color
+    if args.size is not None:
+        changes["size"] = args.size
+
+    if not changes:
+        print("Ничего не изменено")
+        return
+
+    # Запоминаем старые значения для diff
+    old = {k: G.nodes[args.id].get(k, "") for k in changes}
+
+    # Применяем изменения
+    G.nodes[args.id].update(changes)
+
+    try:
+        save_graph(G, args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка при сохранении: {e}")
+        sys.exit(1)
+
+    # Выводим diff
+    print(f"Изменён узел {args.id}:")
+    for k in changes:
+        old_val = str(old[k]) if old[k] else "(пусто)"
+        new_val = str(changes[k]) if changes[k] else "(пусто)"
+        print(f"  {k:<8s} {old_val} → {new_val}")
+
+
 def main():
     parser = ArgumentParser(
         prog="beatrice",
@@ -313,6 +469,11 @@ def main():
   beatrice graph rm-node graph.json  orphan1 orphan2
   beatrice graph add-edge graph.json  kafka zookeeper  --relation использует
   beatrice graph rm-edge graph.json  kafka zookeeper
+  beatrice graph edit-node graph.json  kafka  --label "Apache Kafka" --desc "New description"
+  beatrice graph islands graph.json
+  beatrice graph components graph.json
+  beatrice graph ring graph.json  kafka  --min 2 --max 4 --direction omnidirectional
+  beatrice graph rng graph.json  kafka  --min 0 --max 1 --direction descending
 """,
     )
 
@@ -348,6 +509,23 @@ def main():
     p_orph.add_argument("graph", help="Путь к JSON-файлу графа")
     p_orph.set_defaults(func=cmd_orphans)
 
+    # islands
+    p_islands = gsub.add_parser("islands", aliases=["isl", "components"],
+                                help="Показать изолированные кластеры (компоненты связности)")
+    p_islands.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_islands.set_defaults(func=cmd_islands)
+
+    # ring
+    p_ring = gsub.add_parser("ring", aliases=["rng"],
+                              help="Показать узлы на диапазоне глубин вокруг узла (XOR слоёв)")
+    p_ring.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_ring.add_argument("node", help="ID узла")
+    p_ring.add_argument("--min", type=int, required=True, help="Минимальная глубина (≥0)")
+    p_ring.add_argument("--max", type=int, required=True, help="Максимальная глубина (≥min)")
+    p_ring.add_argument("--direction", choices=["descending", "ascending", "omnidirectional"],
+                        default="omnidirectional", help="Направление обхода")
+    p_ring.set_defaults(func=cmd_ring)
+
     # add-node
     p_addn = gsub.add_parser("add-node", aliases=["an"],
                               help="Добавить узел(ы)")
@@ -366,6 +544,18 @@ def main():
     p_rmn.add_argument("graph", help="Путь к JSON-файлу графа")
     p_rmn.add_argument("ids", nargs="+", help="ID узла (узлов) для удаления")
     p_rmn.set_defaults(func=cmd_rm_node)
+
+    # edit-node
+    p_editn = gsub.add_parser("edit-node", aliases=["en"],
+                              help="Изменить атрибуты узла (patch-only)")
+    p_editn.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_editn.add_argument("id", help="ID узла для редактирования")
+    p_editn.add_argument("--label", "-l", help="Новая метка узла")
+    p_editn.add_argument("--type", "-t", help="Новый тип узла")
+    p_editn.add_argument("--desc", "-d", help="Новое описание узла")
+    p_editn.add_argument("--color", "-c", help="Новый цвет узла (hex)")
+    p_editn.add_argument("--size", type=float, help="Новый размер узла")
+    p_editn.set_defaults(func=cmd_edit_node)
 
     # add-edge
     p_adde = gsub.add_parser("add-edge", aliases=["ae"],
@@ -432,6 +622,10 @@ def cmd_stat(args):
         print(f"Сообществ (Louvain): {len(comms)}")
     except Exception:
         pass
+
+    from networkx.algorithms.components import weakly_connected_components
+    islands = list(weakly_connected_components(G))
+    print(f"Островов:  {len(islands)}")
 
     ranks = nx.pagerank(G)
     top5 = sorted(ranks.items(), key=lambda x: -x[1])[:5]

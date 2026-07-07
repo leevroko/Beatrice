@@ -130,7 +130,10 @@ beatrice graph render graph.json
 | `beatrice graph search <graph> <query>` | Поиск узлов по строке или regex |
 | `beatrice graph neighbors <graph> <node>` | Соседи узла (--direction out\|in\|all) |
 | `beatrice graph orphans <graph>` | Список сирот |
+| `beatrice graph islands <graph>` | Изолированные кластеры (компоненты связности) |
+| `beatrice graph ring <graph> <node> --min N --max M` | Узлы на диапазоне глубин (BFS + XOR слоёв) |
 | `beatrice graph add-node <graph> <id...>` | Добавить узел с --label,--type,--desc,--color,--size |
+| `beatrice graph edit-node <graph> <id>` | Изменить атрибуты узла (patch-only) |
 | `beatrice graph rm-node <graph> <id...>` | Удалить узел |
 | `beatrice graph add-edge <graph> <src...> <tgt...>` | Добавить ребро с --relation,--weight |
 | `beatrice graph rm-edge <graph> <src...> <tgt...>` | Удалить ребро |

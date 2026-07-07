@@ -14,8 +14,8 @@ import networkx as nx
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from beatrice.cli import (BeatriceError, load_graph, save_graph,
-    cmd_search, cmd_neighbors, cmd_orphans, cmd_add_node, cmd_rm_node,
-    cmd_add_edge, cmd_rm_edge, cmd_render)
+    cmd_search, cmd_neighbors, cmd_orphans, cmd_islands, cmd_ring, cmd_add_node, cmd_rm_node,
+    cmd_add_edge, cmd_rm_edge, cmd_edit_node, cmd_render)
 
 
 @contextmanager
@@ -263,6 +263,238 @@ class TestRemoveNode(GraphTestCase):
 # ─────────────────────────────────────────────────────────
 # Add / Remove Edge
 # ─────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────
+# Edit Node
+# ─────────────────────────────────────────────────────────
+
+class TestEditNode(GraphTestCase):
+    """Команда edit-node."""
+
+    def test_edit_label(self):
+        args = FakeArgs(graph=self.path, id="kafka",
+                        label="Apache Kafka", type=None, desc=None,
+                        color=None, size=None)
+        cmd_edit_node(args)
+        G = load_graph(self.path)
+        self.assertEqual(G.nodes["kafka"]["label"], "Apache Kafka")
+        # Другие атрибуты не должны измениться
+        self.assertEqual(G.nodes["kafka"]["type"], "брокер")
+
+    def test_edit_multiple_attrs(self):
+        args = FakeArgs(graph=self.path, id="kafka",
+                        label="Apache Kafka", type="streaming",
+                        desc="New desc", color="#FF0000", size=15.0)
+        cmd_edit_node(args)
+        G = load_graph(self.path)
+        self.assertEqual(G.nodes["kafka"]["label"], "Apache Kafka")
+        self.assertEqual(G.nodes["kafka"]["type"], "streaming")
+        self.assertEqual(G.nodes["kafka"]["desc"], "New desc")
+        self.assertEqual(G.nodes["kafka"]["color"], "#FF0000")
+        self.assertEqual(G.nodes["kafka"]["size"], 15.0)
+
+    def test_edit_nonexistent(self):
+        args = FakeArgs(graph=self.path, id="no-such",
+                        label="X", type=None, desc=None,
+                        color=None, size=None)
+        with capture_stdout() as out:
+            with self.assertRaises(SystemExit):
+                cmd_edit_node(args)
+        self.assertIn("не найден", out.getvalue())
+
+    def test_edit_no_changes(self):
+        """Без флагов — ничего не меняется."""
+        args = FakeArgs(graph=self.path, id="kafka",
+                        label=None, type=None, desc=None,
+                        color=None, size=None)
+        with capture_stdout() as out:
+            cmd_edit_node(args)
+        self.assertIn("Ничего не изменено", out.getvalue())
+        G = load_graph(self.path)
+        self.assertEqual(G.nodes["kafka"]["label"], "Kafka")
+
+    def test_edit_clear_field(self):
+        """Пустая строка сбрасывает атрибут."""
+        args = FakeArgs(graph=self.path, id="kafka",
+                        label=None, type="", desc=None,
+                        color=None, size=None)
+        cmd_edit_node(args)
+        G = load_graph(self.path)
+        self.assertEqual(G.nodes["kafka"]["type"], "")
+        # label не должен измениться
+        self.assertEqual(G.nodes["kafka"]["label"], "Kafka")
+
+
+# ─────────────────────────────────────────────────────────
+# Islands
+# ─────────────────────────────────────────────────────────
+
+class TestIslands(GraphTestCase):
+    """Команда islands."""
+
+    def test_multiple_islands(self):
+        args = FakeArgs(graph=self.path)
+        with capture_stdout() as out:
+            cmd_islands(args)
+        text = out.getvalue()
+        self.assertIn("Остров #1", text)
+        self.assertIn("kafka", text)
+        self.assertIn("Остров #2", text)
+        self.assertIn("orphan", text)
+        self.assertIn("Всего островов: 2", text)
+
+    def test_single_island(self):
+        """После удаления сироты — один остров."""
+        G = load_graph(self.path)
+        G.remove_node("orphan")
+        save_graph(G, self.path)
+        args = FakeArgs(graph=self.path)
+        with capture_stdout() as out:
+            cmd_islands(args)
+        text = out.getvalue()
+        self.assertIn("Остров #1 (4 узла)", text)
+        self.assertIn("Всего островов: 1", text)
+
+    def test_all_orphans(self):
+        """Все узлы — сироты = каждый узел свой остров."""
+        G = nx.DiGraph()
+        for i in range(3):
+            G.add_node(f"n{i}", label=f"Node{i}")
+        save_graph(G, self.path)
+        args = FakeArgs(graph=self.path)
+        with capture_stdout() as out:
+            cmd_islands(args)
+        text = out.getvalue()
+        self.assertIn("👻 сирота", text)
+        self.assertIn("Всего островов: 3", text)
+
+    def test_empty_graph(self):
+        G = nx.DiGraph()
+        save_graph(G, self.path)
+        args = FakeArgs(graph=self.path)
+        with capture_stdout() as out:
+            cmd_islands(args)
+        self.assertIn("Граф пуст", out.getvalue())
+
+
+# ─────────────────────────────────────────────────────────
+# Ring
+# ─────────────────────────────────────────────────────────
+
+class TestRing(unittest.TestCase):
+    """Команда ring."""
+
+    def setUp(self):
+        """Цепочка: a → b → c → d → e."""
+        self.tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        )
+        self.path = self.tmp.name
+        G = nx.DiGraph()
+        G.add_node("a", label="A")
+        G.add_node("b", label="B")
+        G.add_node("c", label="C")
+        G.add_node("d", label="D")
+        G.add_node("e", label="E")
+        G.add_edge("a", "b", relation="→")
+        G.add_edge("b", "c", relation="→")
+        G.add_edge("c", "d", relation="→")
+        G.add_edge("d", "e", relation="→")
+        save_graph(G, self.path)
+
+    def tearDown(self):
+        os.unlink(self.path)
+
+    def test_range_depth(self):
+        """Глубины 2–4 от a (all) = c, d (a→b→c→d—глуб.4 только d).
+        depths: a=0, b=1, c=2, d=3, e=4
+        --min=2, --max=4 → XOR(глуб.1-4 vs глуб.1-2) = глуб.3-4 → d, e
+        """
+        args = FakeArgs(graph=self.path, node="a",
+                        min=2, max=4, direction="omnidirectional")
+        with capture_stdout() as out:
+            cmd_ring(args)
+        text = out.getvalue()
+        self.assertIn("Кольца 3–4", text)
+        self.assertIn("d", text)
+        self.assertIn("e", text)
+        self.assertNotIn("b", text)
+        self.assertNotIn("c", text)
+        self.assertIn("Найдено: 2", text)
+
+    def test_immediate_neighbors(self):
+        """Глубины 0–1 от a = только b."""
+        args = FakeArgs(graph=self.path, node="a",
+                        min=0, max=1, direction="omnidirectional")
+        with capture_stdout() as out:
+            cmd_ring(args)
+        text = out.getvalue()
+        self.assertIn("Глубина 1", text)
+        self.assertIn("b", text)
+        self.assertNotIn("c", text)
+        self.assertIn("Найдено: 1", text)
+
+    def test_no_nodes_in_range(self):
+        """Диапазон глубже, чем есть узлов."""
+        args = FakeArgs(graph=self.path, node="a",
+                        min=10, max=20, direction="omnidirectional")
+        with capture_stdout() as out:
+            cmd_ring(args)
+        self.assertIn("Нет узлов", out.getvalue())
+
+    def test_min_equals_max(self):
+        """min == max — результат всегда пуст (XOR одинаковых множеств)."""
+        args = FakeArgs(graph=self.path, node="a",
+                        min=2, max=2, direction="omnidirectional")
+        with capture_stdout() as out:
+            cmd_ring(args)
+        self.assertIn("Нет узлов", out.getvalue())
+
+    def test_direction_descending(self):
+        """Только нисходящие (successors). a→b→c: depths a=0,b=1,c=2."""
+        args = FakeArgs(graph=self.path, node="a",
+                        min=0, max=2, direction="descending")
+        with capture_stdout() as out:
+            cmd_ring(args)
+        text = out.getvalue()
+        self.assertIn("b", text)
+        self.assertIn("c", text)
+
+    def test_direction_ascending(self):
+        """Только восходящие (predecessors). Из e: e→d→c."""
+        args = FakeArgs(graph=self.path, node="e",
+                        min=0, max=2, direction="ascending")
+        with capture_stdout() as out:
+            cmd_ring(args)
+        text = out.getvalue()
+        self.assertIn("d", text)
+        self.assertIn("c", text)
+        self.assertNotIn("b", text)
+
+    def test_nonexistent_node(self):
+        args = FakeArgs(graph=self.path, node="no-such",
+                        min=0, max=1, direction="omnidirectional")
+        with capture_stdout() as out:
+            with self.assertRaises(SystemExit):
+                cmd_ring(args)
+        self.assertIn("не найден", out.getvalue())
+
+    def test_negative_min(self):
+        args = FakeArgs(graph=self.path, node="a",
+                        min=-1, max=2, direction="omnidirectional")
+        with capture_stdout() as out:
+            with self.assertRaises(SystemExit):
+                cmd_ring(args)
+        self.assertIn("отрицательным", out.getvalue())
+
+    def test_min_greater_than_max(self):
+        args = FakeArgs(graph=self.path, node="a",
+                        min=5, max=3, direction="omnidirectional")
+        with capture_stdout() as out:
+            with self.assertRaises(SystemExit):
+                cmd_ring(args)
+        self.assertIn("меньше --min", out.getvalue())
+
 
 class TestAddEdge(GraphTestCase):
 

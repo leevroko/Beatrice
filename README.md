@@ -13,6 +13,8 @@
 | 🔍 **Поиск узлов** по строке или regex | `beatrice graph search graph.json "query"` |
 | 🧭 **Соседи узла** (входящие/исходящие) | `beatrice graph neighbors graph.json node` |
 | 👻 **Узлы-сироты** (без связей) | `beatrice graph orphans graph.json` |
+| 🏝️ **Острова** (изолированные кластеры) | `beatrice graph islands graph.json` |
+| 🔵 **Кольца** (узлы на диапазоне глубин) | `beatrice graph ring graph.json node --min 2 --max 4` |
 | ➕ **Добавить узел** с атрибутами | `beatrice graph add-node graph.json id --label ...` |
 | ❌ **Удалить узел** (со всеми связями) | `beatrice graph rm-node graph.json id` |
 | 🔗 **Добавить ребро** | `beatrice graph add-edge graph.json src tgt --relation ...` |
@@ -105,6 +107,9 @@ python3 beatrice/cli.py graph render graph.json
   beatrice graph neighbors <graph.json> <node>    [--direction out|in|all]
   beatrice graph orphans   <graph.json>
   beatrice graph add-node  <graph.json> <id...>   [--label --type --desc --color --size]
+  beatrice graph edit-node <graph.json> <id>     [--label --type --desc --color --size]
+  beatrice graph islands  <graph.json>
+  beatrice graph ring      <graph.json> <node>  --min N --max M [--direction]
   beatrice graph rm-node   <graph.json> <id...>
   beatrice graph add-edge  <graph.json> <src...> <tgt...> [--relation --weight]
   beatrice graph rm-edge   <graph.json> <src...> <tgt...>
@@ -142,6 +147,82 @@ beatrice graph orph graph.json     # алиас
 ```
 
 Показывает узлы без единой связи (степень 0). Если сирот нет — сообщает об этом.
+
+### `graph islands`
+
+```bash
+beatrice graph islands graph.json
+beatrice graph isl graph.json          # алиас
+beatrice graph components graph.json   # алиас
+```
+
+Показывает изолированные кластеры (компоненты слабой связности). Узлы, между которыми есть путь в любом направлении — на одном острове.
+
+Острова отсортированы по размеру (от большого к малому), узлы внутри — по алфавиту.
+
+```
+$ beatrice graph islands graph.json
+
+Остров #1 (4 узла):
+  kafka    «Kafka»           брокер
+  connect  «Kafka Connect»   сервис
+  sr       «Schema Reg»      сервис
+  zk       «ZooKeeper»       координатор
+
+Остров #2 (1 узел) 👻 сирота:
+  orphan   «Сирота»          unknown
+
+Всего островов: 2
+```
+
+### `graph ring`
+
+```bash
+beatrice graph ring graph.json Kafka --min 2 --max 4
+beatrice graph rng graph.json Kafka --min 0 --max 1 --direction descending
+```
+
+BFS от указанного узла, XOR слоёв: узлы на диапазоне глубин (min+1..max).
+
+Параметры:
+- `--min` (обязательный) — минимальная глубина (≥0)
+- `--max` (обязательный) — максимальная глубина (≥min)
+- `--direction` — `descending` (только нисходящие), `ascending` (только восходящие), `omnidirectional` (по умолчанию, оба направления)
+
+```
+$ beatrice graph ring graph.json a --min 2 --max 4
+
+Кольца 3–4 от узла «a» (all):
+
+Глубина 3:
+  d       «D»
+
+Глубина 4:
+  e       «E»
+
+Найдено: 2 узла
+```
+
+### `graph edit-node`
+
+```bash
+beatrice graph edit-node graph.json Kafka --label "Apache Kafka" --desc "Event streaming platform"
+beatrice graph edit-node graph.json Kafka --type "брокер" --color "#FF0000"
+beatrice graph en graph.json Kafka --label "Kafka"    # алиас en
+```
+
+Patch-only: меняются только те атрибуты, что переданы флагами. Остальные остаются нетронутыми.
+
+Параметры: `--label`, `--type`, `--desc`, `--color` (hex), `--size` (число).
+
+Если узел не найден — ошибка и файл не трогается. Если не передано ни одного флага — «Ничего не изменено».
+
+```
+$ beatrice graph edit-node graph.json Kafka --label "Apache Kafka" --desc "Event streaming"
+Изменён узел Kafka:
+  label    Kafka → Apache Kafka
+  desc     (пусто) → Event streaming
+```
 
 ### `graph add-node`
 
