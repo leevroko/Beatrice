@@ -23,12 +23,47 @@ class BeatriceError(Exception):
     pass
 
 
+def err(*args, **kwargs):
+    """Печать в stderr."""
+    print(*args, file=sys.stderr, **kwargs)
+
+
+def output_graph(G, matched_nodes, fmt):
+    """Вывести подграф (или весь граф) в заданном формате в stdout."""
+    if fmt == "text":
+        return
+    sub = G.subgraph(matched_nodes) if matched_nodes is not None else G
+    data = nx.node_link_data(sub)
+    json.dump(data, sys.stdout, ensure_ascii=False, indent=2)
+    print()
+
+
+def save_or_output(G, path: str) -> None:
+    """Сохранить граф на диск или вывести в stdout (если path == '-')."""
+    if path == "-":
+        data = nx.node_link_data(G)
+        json.dump(data, sys.stdout, ensure_ascii=False, indent=2)
+        print()
+    else:
+        save_graph(G, path)
+
+
 def load_graph(path: str) -> nx.DiGraph:
     """Читает JSON-граф, возвращает NetworkX граф.
 
+    Если path == "-", читает из stdin.
     Raises:
         BeatriceError: если файл не найден, битый JSON или не является графом.
     """
+    if path == "-":
+        try:
+            data = json.load(sys.stdin)
+        except json.JSONDecodeError as e:
+            raise BeatriceError(f"Ошибка парсинга JSON из stdin: {e}") from e
+        try:
+            return nx.node_link_graph(data, directed=True, multigraph=False)
+        except (nx.NetworkXError, KeyError, TypeError) as e:
+            raise BeatriceError(f"Данные из stdin не содержат валидного графа: {e}") from e
     p = Path(path)
     if not p.exists():
         raise BeatriceError(f"Файл не найден: {path}")
@@ -103,7 +138,7 @@ def cmd_tag_add(args):
         print(f"  {nid}: добавлено {added} тегов")
     if any_work:
         try:
-            save_graph(G, args.graph)
+            save_or_output(G, args.graph)
         except BeatriceError as e:
             print(f"Ошибка при сохранении: {e}")
             sys.exit(1)
@@ -134,7 +169,7 @@ def cmd_tag_rm(args):
             print(f"  {nid}: ничего не удалено")
     if any_work:
         try:
-            save_graph(G, args.graph)
+            save_or_output(G, args.graph)
         except BeatriceError as e:
             print(f"Ошибка при сохранении: {e}")
             sys.exit(1)
@@ -190,7 +225,7 @@ def cmd_tag_clear(args):
         G.nodes[nid]["tags"] = []
         print(f"  {nid}: теги очищены")
     try:
-        save_graph(G, args.graph)
+        save_or_output(G, args.graph)
     except BeatriceError as e:
         print(f"Ошибка при сохранении: {e}")
         sys.exit(1)
@@ -230,11 +265,16 @@ def cmd_search(args):
             if plow in n.lower()
             or plow in G.nodes[n].get("label", "").lower()
         ]
+    if args.output_format == "json":
+        output_graph(G, set(matches), "json")
+        return
     print(f"Найдено узлов: {len(matches)}")
     for n in sorted(matches):
         label = G.nodes[n].get("label", n)
         desc = G.nodes[n].get("desc", "")
         print(f"  {n:<25s} «{label}»   {desc}")
+    if args.output_format == "json":
+        output_graph(G, set(matches), "json")
 
 
 def cmd_neighbors(args):
@@ -252,26 +292,39 @@ def cmd_neighbors(args):
     direction = args.direction
 
     if direction in ("out", "all"):
-        print(f"\n→ Исходящие (на кого указывает «{args.node}»):")
+        if args.output_format != "json":
+            print(f"\n→ Исходящие (на кого указывает «{args.node}»):")
         for _, tgt, data in G.out_edges(args.node, data=True):
             if tgt not in tag_filter:
                 continue
-            label = G.nodes[tgt].get("label", tgt)
-            rel = data.get("relation", "")
-            print(f"  → {tgt:<20s} «{label}»   [{rel}]")
+            if args.output_format != "json":
+                label = G.nodes[tgt].get("label", tgt)
+                rel = data.get("relation", "")
+                print(f"  → {tgt:<20s} «{label}»   [{rel}]")
 
     if direction in ("in", "all"):
-        print(f"\n← Входящие (кто указывает на «{args.node}»):")
+        if args.output_format != "json":
+            print(f"\n← Входящие (кто указывает на «{args.node}»):")
         for src, _, data in G.in_edges(args.node, data=True):
             if src not in tag_filter:
                 continue
-            label = G.nodes[src].get("label", src)
-            rel = data.get("relation", "")
-            print(f"  ← {src:<20s} «{label}»   [{rel}]")
+            if args.output_format != "json":
+                label = G.nodes[src].get("label", src)
+                rel = data.get("relation", "")
+                print(f"  ← {src:<20s} «{label}»   [{rel}]")
 
     if direction == "all":
         total = G.degree(args.node)
-        print(f"\nВсего связей: {total}")
+        if args.output_format != "json":
+            print(f"\nВсего связей: {total}")
+    if args.output_format == "json":
+        # Найденные узлы: сам node + соседи
+        nbrs = {args.node}
+        for _, tgt, _ in G.out_edges(args.node, data=True):
+            nbrs.add(tgt)
+        for src, _, _ in G.in_edges(args.node, data=True):
+            nbrs.add(src)
+        output_graph(G, nbrs, "json")
 
 
 def cmd_orphans(args):
@@ -284,6 +337,10 @@ def cmd_orphans(args):
 
     orphans = [n for n, d in G.degree() if d == 0]
 
+    if args.output_format == "json":
+        output_graph(G, set(orphans), "json")
+        return
+
     if not orphans:
         print("Сирот нет — все узлы имеют хотя бы одну связь.")
         return
@@ -293,6 +350,8 @@ def cmd_orphans(args):
         label = G.nodes[n].get("label", n)
         desc = G.nodes[n].get("desc", "")
         print(f"  {n:<25s} «{label}»   {desc}")
+    if args.output_format == "json":
+        output_graph(G, set(orphans), "json")
 
 
 def cmd_roots(args):
@@ -304,6 +363,12 @@ def cmd_roots(args):
         sys.exit(1)
 
     roots = [n for n in G.nodes() if G.out_degree(n) > 0 and G.in_degree(n) == 0]
+
+    roots = [n for n in G.nodes() if G.out_degree(n) > 0 and G.in_degree(n) == 0]
+
+    if args.output_format == "json":
+        output_graph(G, set(roots), "json")
+        return
 
     if not roots:
         print("Корневых узлов нет — каждый узел на кого-то ссылается и на него ссылаются.")
@@ -326,8 +391,14 @@ def cmd_frontier(args):
 
     frontier = [n for n in G.nodes() if G.in_degree(n) > 0 and G.out_degree(n) == 0]
 
+    if args.output_format == "json":
+        output_graph(G, set(frontier), "json")
+        return
+
     if not frontier:
         print("Пограничных узлов нет — каждый узел на кого-то ссылается и на него ссылаются.")
+        if args.output_format == "json":
+            output_graph(G, set(), "json")
         return
 
     print(f"Найдено пограничных узлов: {len(frontier)}\n")
@@ -335,7 +406,6 @@ def cmd_frontier(args):
         label = G.nodes[n].get("label", n)
         type_str = G.nodes[n].get("type", "")
         print(f"  {n:<25s} «{label}»" + (f"  {type_str}" if type_str else ""))
-
 
 def cmd_add_node(args):
     """Добавить узел (узлы)."""
@@ -365,7 +435,7 @@ def cmd_add_node(args):
 
     if ids_added:
         try:
-            save_graph(G, args.graph)
+            save_or_output(G, args.graph)
         except BeatriceError as e:
             print(f"Ошибка при сохранении: {e}")
             sys.exit(1)
@@ -393,7 +463,7 @@ def cmd_rm_node(args):
 
     if removed:
         try:
-            save_graph(G, args.graph)
+            save_or_output(G, args.graph)
         except BeatriceError as e:
             print(f"Ошибка при сохранении: {e}")
             sys.exit(1)
@@ -438,7 +508,7 @@ def cmd_add_edge(args):
 
     if added:
         try:
-            save_graph(G, args.graph)
+            save_or_output(G, args.graph)
         except BeatriceError as e:
             print(f"Ошибка при сохранении: {e}")
             sys.exit(1)
@@ -473,7 +543,7 @@ def cmd_rm_edge(args):
 
     if removed:
         try:
-            save_graph(G, args.graph)
+            save_or_output(G, args.graph)
         except BeatriceError as e:
             print(f"Ошибка при сохранении: {e}")
             sys.exit(1)
@@ -520,6 +590,8 @@ def cmd_islands(args):
             print(f"  {n:<20s} «{label}»" + (f"  {type_str}" if type_str else ""))
 
     print(f"\nВсего островов: {len(components)}")
+    if args.output_format == "json":
+        output_graph(G, None, "json")
 
 
 def cmd_louvain(args):
@@ -554,6 +626,8 @@ def cmd_louvain(args):
             print(f"  {n:<20s} «{label}»" + (f"  {type_str}" if type_str else ""))
 
     print(f"\nВсего сообществ: {len(communities)}")
+    if args.output_format == "json":
+        output_graph(G, None, "json")
 
 
 def cmd_ring(args):
@@ -628,6 +702,11 @@ def cmd_ring(args):
         total += len(nodes)
 
     print(f"\nНайдено: {total} узлов")
+    if args.output_format == "json":
+        ring_nodes = set()
+        for nodes in by_depth.values():
+            ring_nodes.update(nodes)
+        output_graph(G, ring_nodes, "json")
 
 
 def cmd_edit_node(args):
@@ -666,7 +745,7 @@ def cmd_edit_node(args):
     G.nodes[args.id].update(changes)
 
     try:
-        save_graph(G, args.graph)
+        save_or_output(G, args.graph)
     except BeatriceError as e:
         print(f"Ошибка при сохранении: {e}")
         sys.exit(1)
@@ -723,6 +802,10 @@ def main():
                           help="Фильтр по тегу (можно несколько)")
     p_search.add_argument("--tag-mode", choices=["any", "all"], default="any",
                           help="Режим фильтрации тегов: any (любой) или all (все)")
+    p_search.add_argument("--output-format", choices=["text", "json"], default="text",
+                          help="Формат вывода")
+    p_search.add_argument("--json", action="store_const", dest="output_format", const="json",
+                          help="Сокращение для --output-format json")
     p_search.set_defaults(func=cmd_search)
 
     # neighbors
@@ -737,24 +820,41 @@ def main():
                        help="Фильтр по тегу (можно несколько)")
     p_nei.add_argument("--tag-mode", choices=["any", "all"], default="any",
                        help="Режим фильтрации тегов: any (любой) или all (все)")
+    p_nei.add_argument("--output-format", choices=["text", "json"], default="text",
+                       help="Формат вывода")
+    p_nei.add_argument("--json", action="store_const", dest="output_format", const="json",
+                       help="Сокращение для --output-format json")
     p_nei.set_defaults(func=cmd_neighbors)
 
     # orphans
     p_orph = gsub.add_parser("orphans", aliases=["orph"],
                               help="Показать узлы-сироты (без связей)")
     p_orph.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_orph.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_orph.add_argument("--output-format", choices=["text", "json"], default="text",
+                        help="Формат вывода")
+    p_orph.add_argument("--json", action="store_const", dest="output_format", const="json",
+                        help="Сокращение для --output-format json")
     p_orph.set_defaults(func=cmd_orphans)
 
     # roots
     p_roots = gsub.add_parser("roots",
                               help="Показать корневые узлы (out>0, in=0)")
     p_roots.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_roots.add_argument("--output-format", choices=["text", "json"], default="text",
+                         help="Формат вывода")
+    p_roots.add_argument("--json", action="store_const", dest="output_format", const="json",
+                         help="Сокращение для --output-format json")
     p_roots.set_defaults(func=cmd_roots)
 
     # frontier
     p_frontier = gsub.add_parser("frontier", aliases=["front"],
                                  help="Показать пограничные узлы (in>0, out=0)")
     p_frontier.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_frontier.add_argument("--output-format", choices=["text", "json"], default="text",
+                            help="Формат вывода")
+    p_frontier.add_argument("--json", action="store_const", dest="output_format", const="json",
+                            help="Сокращение для --output-format json")
     p_frontier.set_defaults(func=cmd_frontier)
 
     # islands
@@ -765,6 +865,10 @@ def main():
                           help="Фильтр по тегу (можно несколько)")
     p_islands.add_argument("--tag-mode", choices=["any", "all"], default="any",
                           help="Режим фильтрации тегов: any (любой) или all (все)")
+    p_islands.add_argument("--output-format", choices=["text", "json"], default="text",
+                           help="Формат вывода")
+    p_islands.add_argument("--json", action="store_const", dest="output_format", const="json",
+                           help="Сокращение для --output-format json")
     p_islands.set_defaults(func=cmd_islands)
 
     # louvain
@@ -773,6 +877,10 @@ def main():
     p_louvain.add_argument("graph", help="Путь к JSON-файлу графа")
     p_louvain.add_argument("--seed", type=int, default=42,
                            help="Seed для воспроизводимости (по умолч. 42)")
+    p_louvain.add_argument("--output-format", choices=["text", "json"], default="text",
+                           help="Формат вывода")
+    p_louvain.add_argument("--json", action="store_const", dest="output_format", const="json",
+                           help="Сокращение для --output-format json")
     p_louvain.set_defaults(func=cmd_louvain)
 
     # ring
@@ -788,6 +896,10 @@ def main():
                         help="Фильтр по тегу (можно несколько)")
     p_ring.add_argument("--tag-mode", choices=["any", "all"], default="any",
                         help="Режим фильтрации тегов: any (любой) или all (все)")
+    p_ring.add_argument("--output-format", choices=["text", "json"], default="text",
+                        help="Формат вывода")
+    p_ring.add_argument("--json", action="store_const", dest="output_format", const="json",
+                        help="Сокращение для --output-format json")
     p_ring.set_defaults(func=cmd_ring)
 
     # add-node

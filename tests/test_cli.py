@@ -55,6 +55,7 @@ class FakeArgs:
     def __init__(self, **kwargs):
         self.tag = []
         self.tag_mode = "any"
+        self.output_format = "text"
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -430,6 +431,68 @@ class TestFrontier(GraphTestCase):
         with capture_stdout() as out:
             cmd_frontier(args)
         self.assertNotIn("orphan", out.getvalue())
+
+
+# ─────────────────────────────────────────────────────────
+# Output format: --json
+# ─────────────────────────────────────────────────────────
+
+class TestOutputFormat(GraphTestCase):
+    """Тесты для --json / --output-format json."""
+
+    def test_search_json(self):
+        args = FakeArgs(graph=self.path, pattern="", regex=False,
+                        output_format="json", tag=[], tag_mode="any")
+        with capture_stdout() as out:
+            cmd_search(args)
+        import json
+        data = json.loads(out.getvalue())
+        self.assertIn("nodes", data)
+        self.assertIn("edges", data)
+        self.assertGreater(len(data["nodes"]), 0)
+
+    def test_roots_json(self):
+        args = FakeArgs(graph=self.path, output_format="json")
+        with capture_stdout() as out:
+            cmd_roots(args)
+        import json
+        data = json.loads(out.getvalue())
+        self.assertIn("nodes", data)
+        self.assertGreater(len(data["nodes"]), 0)
+
+    def test_frontier_json(self):
+        args = FakeArgs(graph=self.path, output_format="json")
+        with capture_stdout() as out:
+            cmd_frontier(args)
+        import json
+        data = json.loads(out.getvalue())
+        self.assertIn("nodes", data)
+        self.assertIn("edges", data)
+
+    def test_search_no_match_json(self):
+        """Пустой результат — пустой граф."""
+        args = FakeArgs(graph=self.path, pattern="__nosuch__", regex=False,
+                        output_format="json", tag=[], tag_mode="any")
+        with capture_stdout() as out:
+            cmd_search(args)
+        import json
+        data = json.loads(out.getvalue())
+        self.assertEqual(len(data["nodes"]), 0)
+        self.assertEqual(len(data["edges"]), 0)
+
+    def test_stdin_load(self):
+        """Проверить, что load_graph('-') читает JSON из stdin."""
+        import io
+        G = nx.DiGraph()
+        G.add_node("test", label="Test")
+        input_json = json.dumps(nx.node_link_data(G))
+        old_stdin = sys.stdin
+        sys.stdin = io.StringIO(input_json)
+        try:
+            loaded = load_graph("-")
+            self.assertIn("test", loaded)
+        finally:
+            sys.stdin = old_stdin
 
 
 # ─────────────────────────────────────────────────────────
