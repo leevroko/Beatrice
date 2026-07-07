@@ -241,8 +241,14 @@ def cmd_tag_ls(args):
     # --tag T1 T2 — пересечение (сколько узлов имеют ВСЕ указанные теги)
     if args.tag:
         query = set(args.tag)
+        if args.list:
+            # Просто список ID узлов
+            for n in G.nodes():
+                node_tags = set(G.nodes[n].get("tags", []))
+                if query <= node_tags:
+                    print(n)
+            return
         if args.counts:
-            # Показать статистику по пересечению
             total = 0
             for n in G.nodes():
                 node_tags = set(G.nodes[n].get("tags", []))
@@ -846,6 +852,31 @@ def cmd_symdiff(args):
     print()
 
 
+def cmd_mv(args):
+    """Переименовать узел с сохранением атрибутов и рёбер."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+
+    if args.old not in G:
+        print(f"Ошибка: узел «{args.old}» не найден в графе")
+        sys.exit(1)
+    if args.new in G:
+        print(f"Ошибка: узел «{args.new}» уже существует")
+        sys.exit(1)
+
+    nx.relabel_nodes(G, {args.old: args.new}, copy=False)
+
+    try:
+        save_or_output(G, args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка при сохранении: {e}")
+        sys.exit(1)
+    print(f"{args.old} → {args.new}")
+
+
 def cmd_edit_node(args):
     """Изменить атрибуты узлов (patch-only)."""
     try:
@@ -1090,6 +1121,14 @@ def main():
     p_editn.add_argument("--size", type=float, help="Новый размер узла")
     p_editn.set_defaults(func=cmd_edit_node)
 
+    # mv
+    p_mv = gsub.add_parser("mv",
+                           help="Переименовать узел с сохранением атрибутов и рёбер")
+    p_mv.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_mv.add_argument("old", help="Текущий ID узла")
+    p_mv.add_argument("new", help="Новый ID узла")
+    p_mv.set_defaults(func=cmd_mv)
+
     # tag
     p_tag = gsub.add_parser("tag",
                             help="Управление тегами узлов")
@@ -1117,6 +1156,8 @@ def main():
                           help="Фильтр: показать пересечение указанных тегов")
     p_tag_ls.add_argument("--by-community", action="store_true",
                           help="Показать теги по Louvain-сообществам")
+    p_tag_ls.add_argument("--list", action="store_true",
+                          help="Вывести ID узлов с указанными тегами (по одному на строку)")
     p_tag_ls.set_defaults(func=cmd_tag_ls)
 
     p_tag_clear = tsub.add_parser("clear", help="Очистить все теги узла")
@@ -1164,6 +1205,12 @@ def main():
     p_batch.add_argument("graph", help="Путь к JSON-файлу графа")
     p_batch.add_argument("commands", help="Файл с командами или «-» для stdin")
     p_batch.set_defaults(func=cmd_batch)
+
+    # snapshot
+    p_snap = sub.add_parser("snapshot", help="Создать копию графа (снапшот)")
+    p_snap.add_argument("source", help="Путь к исходному JSON-графу")
+    p_snap.add_argument("dest", help="Путь для сохранения снапшота")
+    p_snap.set_defaults(func=cmd_snapshot)
 
     # --- stat (сокращение для быстрого просмотра) ---
     stat = sub.add_parser("stat", help="Статистика графа")
@@ -1467,6 +1514,19 @@ window.addEventListener("resize",()=>{{
     Path(output).write_text(html, encoding="utf-8")
     print(f"✅ HTML: {Path(output).resolve()}")
     print(f"   Узлов: {len(nodes_data)}, Рёбер: {len(edges_data)}, Сирот: {len(orphans)}")
+
+
+def cmd_snapshot(args):
+    """Создать копию графа (снапшот)."""
+    import shutil
+    src = Path(args.source)
+    dst = Path(args.dest)
+    if not src.exists():
+        print(f"Ошибка: файл не найден: {args.source}", file=sys.stderr)
+        sys.exit(1)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(str(src), str(dst))
+    print(f"✅ Снапшот: {src.resolve()} → {dst.resolve()}")
 
 
 def cmd_batch(args):

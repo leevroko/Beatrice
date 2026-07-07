@@ -660,18 +660,18 @@
       "id": "KafkaStreaming"
     },
     {
-      "label": "My Node",
-      "type": "test",
-      "color": "#FF0000",
-      "size": 20.0,
-      "id": "MyNode"
-    },
-    {
       "label": "Another",
       "type": "test",
       "color": "#FF0000",
       "size": 20.0,
       "id": "AnotherNode"
+    },
+    {
+      "label": "My Node",
+      "type": "test",
+      "color": "#FF0000",
+      "size": 20.0,
+      "id": "MyNode"
     }
   ],
   "edges": [
