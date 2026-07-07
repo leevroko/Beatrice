@@ -16,7 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from beatrice.cli import (BeatriceError, load_graph, save_graph,
     cmd_search, cmd_neighbors, cmd_orphans, cmd_roots, cmd_frontier,
     cmd_islands, cmd_louvain, cmd_ring,
-    cmd_intersect, cmd_union, cmd_diff, cmd_symdiff,    cmd_add_node, cmd_rm_node,
+    cmd_intersect, cmd_union, cmd_diff, cmd_symdiff, cmd_mv, cmd_snapshot,
+    cmd_add_node, cmd_rm_node,
     cmd_add_edge, cmd_rm_edge, cmd_edit_node, cmd_render,
     cmd_tag_add, cmd_tag_rm, cmd_tag_ls, cmd_tag_clear, apply_tag_filter)
 
@@ -58,6 +59,8 @@ class FakeArgs:
         self.output_format = "text"
         self.counts = False
         self.by_community = False
+        self.untagged = False
+        self.list = False
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -1052,6 +1055,105 @@ class TestEdgeMismatch(GraphTestCase):
             with self.assertRaises(SystemExit):
                 cmd_rm_edge(args)
         self.assertIn("количество", out.getvalue())
+
+
+# ─────────────────────────────────────────────────────────
+# mv (rename)
+# ─────────────────────────────────────────────────────────
+
+class TestMv(GraphTestCase):
+    """Команда mv — переименование узла."""
+
+    def test_rename_node(self):
+        cmd_mv(FakeArgs(graph=self.path, old="kafka", new="ApacheKafka"))
+        G = load_graph(self.path)
+        self.assertNotIn("kafka", G)
+        self.assertIn("ApacheKafka", G)
+        self.assertEqual(G.nodes["ApacheKafka"]["label"], "Kafka")
+
+    def test_rename_nonexistent(self):
+        with capture_stdout() as out:
+            with self.assertRaises(SystemExit):
+                cmd_mv(FakeArgs(graph=self.path, old="no-such", new="new"))
+        self.assertIn("не найден", out.getvalue())
+
+    def test_rename_to_existing(self):
+        with capture_stdout() as out:
+            with self.assertRaises(SystemExit):
+                cmd_mv(FakeArgs(graph=self.path, old="kafka", new="zk"))
+        self.assertIn("уже существует", out.getvalue())
+
+    def test_rename_preserves_edges(self):
+        cmd_mv(FakeArgs(graph=self.path, old="kafka", new="ApacheKafka"))
+        G = load_graph(self.path)
+        self.assertTrue(G.has_edge("ApacheKafka", "zk"))
+        self.assertTrue(G.has_edge("ApacheKafka", "sr"))
+
+
+# ─────────────────────────────────────────────────────────
+# snapshot
+# ─────────────────────────────────────────────────────────
+
+class TestSnapshot(GraphTestCase):
+    """Команда snapshot — копирование графа."""
+
+    def test_snapshot_creates_copy(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+            dest = f.name
+        try:
+            cmd_snapshot(FakeArgs(source=self.path, dest=dest))
+            G_orig = load_graph(self.path)
+            G_copy = load_graph(dest)
+            self.assertEqual(G_orig.number_of_nodes(), G_copy.number_of_nodes())
+            self.assertEqual(G_orig.number_of_edges(), G_copy.number_of_edges())
+        finally:
+            os.unlink(dest)
+
+    def test_snapshot_missing_source(self):
+        with capture_stdout() as out:
+            with self.assertRaises(SystemExit):
+                cmd_snapshot(FakeArgs(source="/no/such/file.json", dest="/tmp/x.json"))
+
+
+# ─────────────────────────────────────────────────────────
+# tag ls — untagged, list
+# ─────────────────────────────────────────────────────────
+
+class TestTagLsExtended(GraphTestCase):
+    """Команда tag ls — расширенные флаги."""
+
+    def test_tag_ls_untagged(self):
+        """Узлы без тегов — kafka имеет тег, его нет в выводе."""
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["kafka"],
+                             tags=["streaming"]))
+        args = FakeArgs(graph=self.path, id=None, untagged=True)
+        with capture_stdout() as out:
+            cmd_tag_ls(args)
+        text = out.getvalue()
+        self.assertNotIn("kafka", text)  # kafka имеет тег
+        self.assertIn("connect", text)   # connect без тега
+
+    def test_tag_ls_untagged_all_tagged(self):
+        """Если все узлы имеют теги."""
+        for n in ["kafka", "zk", "sr", "connect", "orphan"]:
+            cmd_tag_add(FakeArgs(graph=self.path, ids=[n],
+                                 tags=["tagged"]))
+        args = FakeArgs(graph=self.path, id=None, untagged=True)
+        with capture_stdout() as out:
+            cmd_tag_ls(args)
+        self.assertIn("Все узлы имеют", out.getvalue())
+
+    def test_tag_ls_list(self):
+        """--list с --tag выводит ID узлов."""
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["kafka", "zk"],
+                             tags=["test"]))
+        args = FakeArgs(graph=self.path, id=None, tag=["test"], list=True)
+        with capture_stdout() as out:
+            cmd_tag_ls(args)
+        text = out.getvalue()
+        self.assertIn("kafka", text)
+        self.assertIn("zk", text)
 
 
 if __name__ == "__main__":

@@ -234,7 +234,7 @@ def cmd_tag_ls(args):
         for t in G.nodes[n].get("tags", []):
             counter[t] += 1
 
-    if not counter:
+    if not counter and not args.untagged:
         print("В графе нет тегов")
         return
 
@@ -257,6 +257,19 @@ def cmd_tag_ls(args):
             tag_list = ", ".join(args.tag)
             print(f"Узлы с тегами [{tag_list}]: {total}")
             return
+
+    # --untagged — узлы без тегов
+    if args.untagged:
+        untagged = [n for n in G.nodes() if not G.nodes[n].get("tags", [])]
+        if not untagged:
+            print("Все узлы имеют хотя бы один тег")
+            return
+        print(f"Узлы без тегов ({len(untagged)}):")
+        for n in sorted(untagged):
+            label = G.nodes[n].get("label", n)
+            type_str = G.nodes[n].get("type", "")
+            print(f"  {n:<25s} «{label}»" + (f"  {type_str}" if type_str else ""))
+        return
 
     # --counts (без --tag)
     if args.counts:
@@ -1158,6 +1171,8 @@ def main():
                           help="Показать теги по Louvain-сообществам")
     p_tag_ls.add_argument("--list", action="store_true",
                           help="Вывести ID узлов с указанными тегами (по одному на строку)")
+    p_tag_ls.add_argument("--untagged", action="store_true",
+                          help="Показать узлы без тегов")
     p_tag_ls.set_defaults(func=cmd_tag_ls)
 
     p_tag_clear = tsub.add_parser("clear", help="Очистить все теги узла")
