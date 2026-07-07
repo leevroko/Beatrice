@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from beatrice.cli import (BeatriceError, load_graph, save_graph,
     cmd_search, cmd_neighbors, cmd_orphans, cmd_roots, cmd_frontier,
     cmd_islands, cmd_louvain, cmd_ring,
-    cmd_add_node, cmd_rm_node,
+    cmd_intersect, cmd_union, cmd_diff, cmd_symdiff,    cmd_add_node, cmd_rm_node,
     cmd_add_edge, cmd_rm_edge, cmd_edit_node, cmd_render,
     cmd_tag_add, cmd_tag_rm, cmd_tag_ls, cmd_tag_clear, apply_tag_filter)
 
@@ -431,6 +431,72 @@ class TestFrontier(GraphTestCase):
         with capture_stdout() as out:
             cmd_frontier(args)
         self.assertNotIn("orphan", out.getvalue())
+
+
+# ─────────────────────────────────────────────────────────
+# Set operations: intersect, union, diff, symdiff
+# ─────────────────────────────────────────────────────────
+
+class TestSetOps(GraphTestCase):
+    """Операции над множествами графов."""
+
+    def setUp(self):
+        super().setUp()
+        # G1: тестовый граф из make_test_graph() — 5 узлов
+        # G2: создаём второй граф с пересекающимися узлами
+        self.path2 = self.path + ".g2.json"
+        G2 = nx.DiGraph()
+        G2.add_node("kafka", label="Kafka", type="брокер")
+        G2.add_node("redis", label="Redis", type="БД")
+        G2.add_edge("kafka", "redis", relation="использует")
+        save_graph(G2, self.path2)
+
+    def tearDown(self):
+        super().tearDown()
+        from pathlib import Path
+        Path(self.path2).unlink(missing_ok=True)
+
+    def _capture(self, cmd, **kwargs):
+        """Выполнить команду, вернуть parsed JSON."""
+        with capture_stdout() as out:
+            cmd(FakeArgs(graph1=self.path, graph2=self.path2))
+        return json.loads(out.getvalue())
+
+    def test_intersect(self):
+        """kafka есть в обоих графах."""
+        data = self._capture(cmd_intersect)
+        ids = [n["id"] for n in data["nodes"]]
+        self.assertIn("kafka", ids)
+        self.assertNotIn("redis", ids)
+        self.assertNotIn("zk", ids)
+
+    def test_union(self):
+        """Все узлы из обоих графов."""
+        data = self._capture(cmd_union)
+        ids = [n["id"] for n in data["nodes"]]
+        self.assertIn("kafka", ids)
+        self.assertIn("redis", ids)
+        self.assertIn("zk", ids)
+        # kafka→redis должен быть
+        self.assertTrue(any(e["source"] == "kafka" and e["target"] == "redis" for e in data["edges"]))
+
+    def test_diff(self):
+        """Узлы из G1, которых нет в G2: zk, sr, connect, orphan."""
+        data = self._capture(cmd_diff)
+        ids = [n["id"] for n in data["nodes"]]
+        self.assertNotIn("kafka", ids)
+        self.assertIn("zk", ids)
+        self.assertIn("sr", ids)
+        self.assertIn("connect", ids)
+        self.assertIn("orphan", ids)
+
+    def test_symdiff(self):
+        """Узлы только в одном из графов: zk, sr, connect, orphan, redis (kafka в обоих)."""
+        data = self._capture(cmd_symdiff)
+        ids = [n["id"] for n in data["nodes"]]
+        self.assertNotIn("kafka", ids)  # в обоих — не попадает
+        self.assertIn("redis", ids)      # только в G2
+        self.assertIn("zk", ids)         # только в G1
 
 
 # ─────────────────────────────────────────────────────────

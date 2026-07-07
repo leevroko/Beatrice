@@ -709,6 +709,90 @@ def cmd_ring(args):
         output_graph(G, ring_nodes, "json")
 
 
+def cmd_intersect(args):
+    """Пересечение двух графов: узлы, присутствующие в обоих."""
+    try:
+        G1 = load_graph(args.graph1)
+        G2 = load_graph(args.graph2)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+    common = set(G1.nodes()) & set(G2.nodes())
+    sub = G1.subgraph(common)
+    data = nx.node_link_data(sub)
+    json.dump(data, sys.stdout, ensure_ascii=False, indent=2)
+    print()
+
+
+def cmd_union(args):
+    """Объединение двух графов: все узлы из обоих."""
+    try:
+        G1 = load_graph(args.graph1)
+        G2 = load_graph(args.graph2)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+    all_nodes = set(G1.nodes()) | set(G2.nodes())
+    G = nx.DiGraph()
+    for n in all_nodes:
+        attrs = {}
+        if n in G1:
+            attrs = dict(G1.nodes[n])
+        elif n in G2:
+            attrs = dict(G2.nodes[n])
+        G.add_node(n, **attrs)
+    # Рёбра из обоих графов
+    for s, t, d in G1.edges(data=True):
+        G.add_edge(s, t, **d)
+    for s, t, d in G2.edges(data=True):
+        G.add_edge(s, t, **dict(d))
+    data = nx.node_link_data(G)
+    json.dump(data, sys.stdout, ensure_ascii=False, indent=2)
+    print()
+
+
+def cmd_diff(args):
+    """Разность двух графов: узлы из graph1, которых нет в graph2."""
+    try:
+        G1 = load_graph(args.graph1)
+        G2 = load_graph(args.graph2)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+    diff_nodes = set(G1.nodes()) - set(G2.nodes())
+    sub = G1.subgraph(diff_nodes)
+    data = nx.node_link_data(sub)
+    json.dump(data, sys.stdout, ensure_ascii=False, indent=2)
+    print()
+
+
+def cmd_symdiff(args):
+    """Симметрическая разность двух графов: узлы, присутствующие только в одном из них."""
+    try:
+        G1 = load_graph(args.graph1)
+        G2 = load_graph(args.graph2)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+    sym = set(G1.nodes()) ^ set(G2.nodes())
+    all_nodes = list(sym)
+    G = nx.DiGraph()
+    for n in all_nodes:
+        if n in G1:
+            G.add_node(n, **dict(G1.nodes[n]))
+        else:
+            G.add_node(n, **dict(G2.nodes[n]))
+    for s, t, d in G1.edges(data=True):
+        if s in sym and t in sym:
+            G.add_edge(s, t, **d)
+    for s, t, d in G2.edges(data=True):
+        if s in sym and t in sym:
+            G.add_edge(s, t, **dict(d))
+    data = nx.node_link_data(G)
+    json.dump(data, sys.stdout, ensure_ascii=False, indent=2)
+    print()
+
+
 def cmd_edit_node(args):
     """Изменить атрибуты существующего узла (patch-only)."""
     try:
@@ -901,6 +985,23 @@ def main():
     p_ring.add_argument("--json", action="store_const", dest="output_format", const="json",
                         help="Сокращение для --output-format json")
     p_ring.set_defaults(func=cmd_ring)
+
+    # set operations
+    for op, op_help in [
+        ("intersect", "Пересечение двух графов: узлы, присутствующие в обоих"),
+        ("union", "Объединение двух графов: все узлы из обоих"),
+        ("diff", "Разность двух графов: узлы из первого, которых нет во втором"),
+        ("symdiff", "Симметрическая разность: узлы, присутствующие только в одном"),
+    ]:
+        p_op = gsub.add_parser(op, help=op_help)
+        p_op.add_argument("graph1", help="Путь к первому JSON-графу")
+        p_op.add_argument("graph2", help="Путь ко второму JSON-графу")
+        p_op.set_defaults(func={
+            "intersect": cmd_intersect,
+            "union": cmd_union,
+            "diff": cmd_diff,
+            "symdiff": cmd_symdiff,
+        }[op])
 
     # add-node
     p_addn = gsub.add_parser("add-node", aliases=["an"],
