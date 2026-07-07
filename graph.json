@@ -672,6 +672,17 @@
       "color": "#FF0000",
       "size": 20.0,
       "id": "MyNode"
+    },
+    {
+      "label": "Test",
+      "tags": [],
+      "color": "#FF0000",
+      "id": "Y"
+    },
+    {
+      "label": "TestX",
+      "color": "#FF0000",
+      "id": "X"
     }
   ],
   "edges": [
@@ -1284,6 +1295,11 @@
       "relation": "links",
       "source": "MyNode",
       "target": "AnotherNode"
+    },
+    {
+      "relation": "test",
+      "source": "X",
+      "target": "Y"
     }
   ]
 }

@@ -1548,7 +1548,7 @@ def cmd_batch(args):
         "edit-node": cmd_edit_node,
         "add-edge": cmd_add_edge,
         "rm-edge": cmd_rm_edge,
-        "tag": cmd_tag_add,
+        "tag": None,
     }
 
     for line in lines:
@@ -1600,6 +1600,29 @@ def cmd_batch(args):
             fake.weight = subargs.weight
             _batch_cmd_add_edge(G, fake)
 
+        elif cmd_name == "rm-node":
+            parser = ArgumentParser()
+            parser.add_argument("ids", nargs="+")
+            subargs = parser.parse_args(parts[1:])
+            for nid in subargs.ids:
+                if nid not in G:
+                    print(f"Предупреждение: узел «{nid}» не найден — пропускаю")
+                    continue
+                G.remove_node(nid)
+                print(f"  - {nid}")
+
+        elif cmd_name == "rm-edge":
+            parser = ArgumentParser()
+            parser.add_argument("sources", nargs="+")
+            parser.add_argument("targets", nargs="+")
+            subargs = parser.parse_args(parts[1:])
+            for src, tgt in zip(subargs.sources, subargs.targets):
+                if not G.has_edge(src, tgt):
+                    print(f"Предупреждение: ребро {src}→{tgt} не найдено — пропускаю")
+                    continue
+                G.remove_edge(src, tgt)
+                print(f"  - {src} → {tgt}")
+
         elif cmd_name == "edit-node":
             parser = ArgumentParser()
             parser.add_argument("--ids", nargs="+", required=True)
@@ -1619,9 +1642,9 @@ def cmd_batch(args):
 
         elif cmd_name == "tag":
             parser = ArgumentParser()
-            parser.add_argument("subcmd", choices=["add"])
-            parser.add_argument("ids", nargs="+")
-            parser.add_argument("tags", nargs="+", metavar="tag")
+            parser.add_argument("subcmd", choices=["add", "rm", "clear"])
+            parser.add_argument("--ids", nargs="+", required=True)
+            parser.add_argument("--tags", nargs="*", default=[], metavar="tag")
             subargs = parser.parse_args(parts[1:])
             if subargs.subcmd == "add":
                 for nid in subargs.ids:
@@ -1634,6 +1657,28 @@ def cmd_batch(args):
                     G.nodes[nid]["tags"] = list(tags)
                     added = len(tags) - before
                     print(f"  {nid}: добавлено {added} тегов")
+            elif subargs.subcmd == "rm":
+                tags_to_rm = set(subargs.tags)
+                for nid in subargs.ids:
+                    if nid not in G:
+                        print(f"Предупреждение: узел «{nid}» не найден — пропускаю", file=sys.stderr)
+                        continue
+                    tags = set(G.nodes[nid].get("tags", []))
+                    before = len(tags)
+                    tags -= tags_to_rm
+                    removed = before - len(tags)
+                    if removed:
+                        G.nodes[nid]["tags"] = list(tags)
+                        print(f"  {nid}: удалено {removed} тегов")
+                    else:
+                        print(f"  {nid}: ничего не удалено")
+            elif subargs.subcmd == "clear":
+                for nid in subargs.ids:
+                    if nid not in G:
+                        print(f"Предупреждение: узел «{nid}» не найден — пропускаю", file=sys.stderr)
+                        continue
+                    G.nodes[nid]["tags"] = []
+                    print(f"  {nid}: теги очищены")
 
     # Сохраняем
     try:
