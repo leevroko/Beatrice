@@ -918,6 +918,14 @@ def cmd_render(args):
         "#42d4f4", "#f032e6", "#bfef45", "#fabed4", "#469990", "#dcbeff",
     ]
 
+    # Все уникальные теги в графе для подсветки
+    from collections import Counter
+    tag_counter: Counter[str] = Counter()
+    for n in G.nodes():
+        for t in G.nodes[n].get("tags", []):
+            tag_counter[t] += 1
+    all_tags = sorted(tag_counter.keys())
+
     nodes_data = []
     for n in G.nodes():
         comm_idx = node_community.get(n, 0)
@@ -931,6 +939,7 @@ def cmd_render(args):
             "isOrphan": n in orphans,
             "community": comm_idx,
             "communityColor": louvain_palette[comm_idx % len(louvain_palette)],
+            "tags": G.nodes[n].get("tags", []),
         })
 
     edges_data = []
@@ -953,6 +962,7 @@ def cmd_render(args):
     json_orphans = json.dumps(list(orphans))
     json_types = json.dumps(types, ensure_ascii=False)
     json_louvain = json.dumps(louvain_available)
+    json_all_tags = json.dumps(all_tags, ensure_ascii=False)
 
     html = f"""<!DOCTYPE html>
 <html lang="ru">
@@ -995,6 +1005,10 @@ def cmd_render(args):
   <button onclick="toggleOrphans()">👻 Сироты</button>
   <button onclick="toggleDirection()">↔ Направления</button>
   <button onclick="toggleLouvain()">🧬 Сообщества</button>
+  <select id="tag-select" onchange="applyTagHighlight()">
+    <option value="">— Тег —</option>
+  </select>
+  <input type="color" id="tag-color" value="#e94560" oninput="applyTagHighlight()" style="width:36px;height:36px;padding:2px;border:1px solid {panel_border};border-radius:6px;background:{panel_bg};cursor:pointer;">
 </div>
 <div class="legend" id="legend"></div>
 <div class="tooltip" id="tooltip"></div>
@@ -1005,6 +1019,14 @@ const edgesData = {json_edges};
 const orphans = {json_orphans};
 const typeColors = {json_types};
 const louvainAvailable = {json_louvain};
+const allTags = {json_all_tags};
+const tagSelect = document.getElementById("tag-select");
+allTags.forEach(t => {{
+    const opt = document.createElement("option");
+    opt.value = t;
+    opt.textContent = t;
+    tagSelect.appendChild(opt);
+}});
 const width = window.innerWidth, height = window.innerHeight;
 document.getElementById('info').textContent =
   `${{nodesData.length}} узлов · ${{edgesData.length}} рёбер · ${{orphans.length}} сирот`;
@@ -1064,6 +1086,22 @@ function toggleOrphans(){{showOrphans=!showOrphans;node.style("opacity",d=>showO
 let showDir=true;
 function toggleDirection(){{showDir=!showDir;link.attr("marker-end",showDir?"url(#arrow)":null);}}
 let showLouvain=false;
+let tagHighlightActive=false;
+let tagHighlightColor="#e94560";
+function applyTagHighlight(){{
+    const sel = document.getElementById("tag-select").value;
+    const color = document.getElementById("tag-color").value;
+    tagHighlightColor = color;
+    if(!sel){{
+        tagHighlightActive=false;
+        node.selectAll("circle").transition().duration(300)
+            .attr("fill",d=>d.color);
+        return;
+    }}
+    tagHighlightActive=true;
+    node.selectAll("circle").transition().duration(300)
+        .attr("fill",d=>d.tags&&d.tags.includes(sel)?color:d.color);
+}}
 function toggleLouvain(){{
     showLouvain=!showLouvain;
     node.selectAll("circle").transition().duration(300)
