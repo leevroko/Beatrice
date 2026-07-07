@@ -16,7 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from beatrice.cli import (BeatriceError, load_graph, save_graph,
     cmd_search, cmd_neighbors, cmd_orphans, cmd_islands, cmd_louvain, cmd_ring,
     cmd_add_node, cmd_rm_node,
-    cmd_add_edge, cmd_rm_edge, cmd_edit_node, cmd_render)
+    cmd_add_edge, cmd_rm_edge, cmd_edit_node, cmd_render,
+    cmd_tag_add, cmd_tag_rm, cmd_tag_ls, cmd_tag_clear, apply_tag_filter)
 
 
 @contextmanager
@@ -51,6 +52,8 @@ def make_test_graph() -> nx.DiGraph:
 
 class FakeArgs:
     def __init__(self, **kwargs):
+        self.tag = []
+        self.tag_mode = "any"
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -376,6 +379,135 @@ class TestIslands(GraphTestCase):
         with capture_stdout() as out:
             cmd_islands(args)
         self.assertIn("Граф пуст", out.getvalue())
+
+
+# ─────────────────────────────────────────────────────────
+# Tags — CRUD
+# ─────────────────────────────────────────────────────────
+
+class TestTagCRUD(GraphTestCase):
+    """Команда tag: add, rm, ls, clear."""
+
+    def test_tag_add(self):
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["kafka"],
+                             tags=["streaming", "kafka-экосистема"]))
+        G = load_graph(self.path)
+        self.assertCountEqual(G.nodes["kafka"]["tags"],
+                              ["streaming", "kafka-экосистема"])
+
+    def test_tag_add_multiple_nodes(self):
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["kafka", "zk"],
+                             tags=["test"]))
+        G = load_graph(self.path)
+        self.assertIn("test", G.nodes["kafka"]["tags"])
+        self.assertIn("test", G.nodes["zk"]["tags"])
+
+    def test_tag_rm(self):
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["kafka"],
+                             tags=["streaming", "temp"]))
+        cmd_tag_rm(FakeArgs(graph=self.path, ids=["kafka"],
+                            tags=["temp"]))
+        G = load_graph(self.path)
+        self.assertIn("streaming", G.nodes["kafka"]["tags"])
+        self.assertNotIn("temp", G.nodes["kafka"]["tags"])
+
+    def test_tag_ls_node(self):
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["kafka"],
+                             tags=["streaming"]))
+        with capture_stdout() as out:
+            cmd_tag_ls(FakeArgs(graph=self.path, id="kafka"))
+        self.assertIn("streaming", out.getvalue())
+
+    def test_tag_ls_all(self):
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["kafka"],
+                             tags=["a"]))
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["zk"],
+                             tags=["b"]))
+        with capture_stdout() as out:
+            cmd_tag_ls(FakeArgs(graph=self.path, id=None))
+        text = out.getvalue()
+        self.assertIn("a", text)
+        self.assertIn("b", text)
+
+    def test_tag_clear(self):
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["kafka"],
+                             tags=["x", "y"]))
+        cmd_tag_clear(FakeArgs(graph=self.path, ids=["kafka"]))
+        G = load_graph(self.path)
+        self.assertEqual(G.nodes["kafka"]["tags"], [])
+
+    def test_tag_nonexistent_node(self):
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["no-such"],
+                             tags=["x"]))
+        G = load_graph(self.path)
+        self.assertEqual(G.number_of_nodes(), 5)
+
+
+# ─────────────────────────────────────────────────────────
+# Tags — filter on search/islands/neighbors/ring
+# ─────────────────────────────────────────────────────────
+
+class TestTagFilter(GraphTestCase):
+    """Фильтрация по тегам."""
+
+    def setUp(self):
+        super().setUp()
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["kafka", "zk", "sr"],
+                             tags=["kafka-экосистема"]))
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["connect"],
+                             tags=["integration"]))
+
+    def test_search_tag_filter(self):
+        """Поиск только среди узлов с тегом kafka-экосистема."""
+        args = FakeArgs(graph=self.path, pattern="", regex=False,
+                        tag=["kafka-экосистема"], tag_mode="any")
+        with capture_stdout() as out:
+            cmd_search(args)
+        text = out.getvalue()
+        self.assertIn("kafka", text)
+        self.assertIn("zk", text)
+        self.assertNotIn("orphan", text)
+        self.assertNotIn("connect", text)
+
+    def test_search_tag_mode_all(self):
+        """Поиск с tag-mode=all (должен быть и kafka-экосистема, и что-то ещё)."""
+        G = load_graph(self.path)
+        G.nodes["kafka"]["tags"] = ["kafka-экосистема", "extra"]
+        save_graph(G, self.path)
+        args = FakeArgs(graph=self.path, pattern="", regex=False,
+                        tag=["kafka-экосистема", "extra"], tag_mode="all")
+        with capture_stdout() as out:
+            cmd_search(args)
+        text = out.getvalue()
+        self.assertIn("kafka", text)
+        self.assertNotIn("zk", text)
+
+    def test_islands_tag_filter(self):
+        """Острова только среди узлов с тегом kafka-экосистема."""
+        args = FakeArgs(graph=self.path, tag=["kafka-экосистема"], tag_mode="any")
+        with capture_stdout() as out:
+            cmd_islands(args)
+        text = out.getvalue()
+        self.assertIn("kafka", text)
+        self.assertNotIn("connect", text)
+
+    def test_neighbors_tag_filter(self):
+        """Соседи Kafka, только если у них есть тег."""
+        args = FakeArgs(graph=self.path, node="kafka", direction="out",
+                        tag=["kafka-экосистема"], tag_mode="any")
+        with capture_stdout() as out:
+            cmd_neighbors(args)
+        # У zk есть тег, у sr есть тег
+        self.assertIn("zk", out.getvalue())
+
+    def test_ring_no_tag(self):
+        """Без --tag работает как обычно."""
+        args = FakeArgs(graph=self.path, node="kafka", min=0, max=1,
+                        direction="omnidirectional", tag=[], tag_mode="any")
+        with capture_stdout() as out:
+            cmd_ring(args)
+        self.assertIn("Глубина 1", out.getvalue())
+        self.assertIn("zk", out.getvalue())
 
 
 # ─────────────────────────────────────────────────────────

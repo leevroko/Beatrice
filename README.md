@@ -16,6 +16,7 @@
 | 🏝️ **Острова** (изолированные кластеры) | `beatrice graph islands graph.json` |
 | 🧬 **Сообщества** (Louvain-кластеризация) | `beatrice graph louvain graph.json` |
 | 🔵 **Кольца** (узлы на диапазоне глубин) | `beatrice graph ring graph.json node --min 2 --max 4` |
+| 🏷️ **Теги** (управление тегами узлов) | `beatrice graph tag add/rm/ls/clear graph.json ...` |
 | ➕ **Добавить узел** с атрибутами | `beatrice graph add-node graph.json id --label ...` |
 | ❌ **Удалить узел** (со всеми связями) | `beatrice graph rm-node graph.json id` |
 | 🔗 **Добавить ребро** | `beatrice graph add-edge graph.json src tgt --relation ...` |
@@ -112,6 +113,7 @@ python3 beatrice/cli.py graph render graph.json
   beatrice graph islands  <graph.json>
   beatrice graph louvain <graph.json>     [--seed N]
   beatrice graph ring      <graph.json> <node>  --min N --max M [--direction]
+  beatrice graph tag       <graph.json> <node> add|rm|ls|clear <tag...>
   beatrice graph rm-node   <graph.json> <id...>
   beatrice graph add-edge  <graph.json> <src...> <tgt...> [--relation --weight]
   beatrice graph rm-edge   <graph.json> <src...> <tgt...>
@@ -230,6 +232,35 @@ $ beatrice graph ring graph.json a --min 2 --max 4
 
 Найдено: 2 узла
 ```
+
+### `graph tag`
+
+Управление тегами узлов. Теги — произвольные строки, хранятся в поле `tags` каждого узла.
+
+```bash
+beatrice graph tag add   graph.json Kafka streaming kafka-экосистема
+beatrice graph tag rm    graph.json Kafka temp
+beatrice graph tag ls    graph.json              # все теги графа
+beatrice graph tag ls    graph.json Kafka         # теги конкретного узла
+beatrice graph tag clear graph.json Kafka
+```
+
+Параметры:
+- `add <graph> <id...> <tag...>` — добавить теги к узлу (узлам)
+- `rm <graph> <id...> <tag...>` — удалить теги из узла (узлов)
+- `ls <graph> [id]` — без id показывает все теги графа с частотой, с id — теги узла
+- `clear <graph> <id...>` — очистить все теги узла (узлов)
+
+Фильтрация по тегам доступна на командах `search`, `neighbors`, `islands`, `ring`:
+
+```bash
+beatrice graph search graph.json "" --tag streaming --tag-mode any
+beatrice graph islands graph.json --tag kafka --tag-mode all
+beatrice graph ring graph.json Kafka --min 0 --max 2 --tag streaming
+```
+
+- `--tag` можно указывать несколько раз
+- `--tag-mode` принимает `any` (по умолчанию) или `all`
 
 ### `graph edit-node`
 

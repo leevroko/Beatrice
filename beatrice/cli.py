@@ -60,6 +60,142 @@ def save_graph(G: nx.DiGraph, path: str) -> None:
         raise BeatriceError(f"Не удалось записать файл {path}: {e}") from e
 
 
+def apply_tag_filter(G: nx.DiGraph, tags: list[str], mode: str) -> set[str]:
+    """Вернуть множество id узлов, проходящих фильтр по тегам.
+
+    Если tags пуст — возвращает все узлы.
+    mode='any' — узел подходит, если совпадает хотя бы один тег.
+    mode='all' — должны совпасть все теги.
+    """
+    if not tags:
+        return set(G.nodes())
+    result = set()
+    query_tags = set(tags)
+    for n in G.nodes():
+        node_tags = set(G.nodes[n].get("tags", []))
+        if mode == "any":
+            if node_tags & query_tags:
+                result.add(n)
+        else:  # all
+            if query_tags <= node_tags:
+                result.add(n)
+    return result
+
+
+def cmd_tag_add(args):
+    """Добавить теги к узлу (узлам)."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+    any_work = False
+    for nid in args.ids:
+        if nid not in G:
+            print(f"Предупреждение: узел «{nid}» не найден — пропускаю")
+            continue
+        tags = set(G.nodes[nid].get("tags", []))
+        before = len(tags)
+        tags.update(args.tags)
+        G.nodes[nid]["tags"] = list(tags)
+        added = len(tags) - before
+        any_work = True
+        print(f"  {nid}: добавлено {added} тегов")
+    if any_work:
+        try:
+            save_graph(G, args.graph)
+        except BeatriceError as e:
+            print(f"Ошибка при сохранении: {e}")
+            sys.exit(1)
+
+
+def cmd_tag_rm(args):
+    """Удалить теги из узла (узлов)."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+    any_work = False
+    tags_to_rm = set(args.tags)
+    for nid in args.ids:
+        if nid not in G:
+            print(f"Предупреждение: узел «{nid}» не найден — пропускаю")
+            continue
+        tags = set(G.nodes[nid].get("tags", []))
+        before = len(tags)
+        tags -= tags_to_rm
+        removed = before - len(tags)
+        if removed:
+            G.nodes[nid]["tags"] = list(tags)
+            any_work = True
+            print(f"  {nid}: удалено {removed} тегов")
+        else:
+            print(f"  {nid}: ничего не удалено")
+    if any_work:
+        try:
+            save_graph(G, args.graph)
+        except BeatriceError as e:
+            print(f"Ошибка при сохранении: {e}")
+            sys.exit(1)
+
+
+def cmd_tag_ls(args):
+    """Показать теги (всех узлов или конкретного)."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+
+    if args.id:
+        # Теги одного узла
+        nid = args.id
+        if nid not in G:
+            print(f"Ошибка: узел «{nid}» не найден в графе")
+            sys.exit(1)
+        tags = G.nodes[nid].get("tags", [])
+        if not tags:
+            print(f"У узла «{nid}» нет тегов")
+            return
+        print(f"Теги узла «{nid}»:")
+        for t in sorted(tags):
+            print(f"  {t}")
+    else:
+        # Все теги графа с частотой
+        from collections import Counter
+        counter: Counter[str] = Counter()
+        for n in G.nodes():
+            for t in G.nodes[n].get("tags", []):
+                counter[t] += 1
+        if not counter:
+            print("В графе нет тегов")
+            return
+        print(f"{len(counter)} тегов в графе:")
+        for t, cnt in sorted(counter.items(), key=lambda x: -x[1]):
+            print(f"  {t:<25s} ({cnt} узел{'а' if 2 <= cnt <= 4 else 'ов' if cnt >= 5 else ''})")
+
+
+def cmd_tag_clear(args):
+    """Очистить все теги узла."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+    for nid in args.ids:
+        if nid not in G:
+            print(f"Предупреждение: узел «{nid}» не найден — пропускаю")
+            continue
+        G.nodes[nid]["tags"] = []
+        print(f"  {nid}: теги очищены")
+    try:
+        save_graph(G, args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка при сохранении: {e}")
+        sys.exit(1)
+
+
 def cmd_search(args):
     """Найти узлы, чей id или label содержит строку или соответствует regex."""
     try:
@@ -67,6 +203,8 @@ def cmd_search(args):
     except BeatriceError as e:
         print(f"Ошибка: {e}")
         sys.exit(1)
+
+    tag_filter = apply_tag_filter(G, args.tag, args.tag_mode)
 
     try:
         if args.regex:
@@ -79,7 +217,7 @@ def cmd_search(args):
 
     if matcher:
         matches = [
-            n for n in G.nodes()
+            n for n in G.nodes() if n in tag_filter
             if matcher.search(n) or (
                 G.nodes[n].get("label")
                 and matcher.search(str(G.nodes[n]["label"]))
@@ -88,7 +226,7 @@ def cmd_search(args):
     else:
         plow = args.pattern.lower()
         matches = [
-            n for n in G.nodes()
+            n for n in G.nodes() if n in tag_filter
             if plow in n.lower()
             or plow in G.nodes[n].get("label", "").lower()
         ]
@@ -110,11 +248,14 @@ def cmd_neighbors(args):
         print(f"Ошибка: узел «{args.node}» не найден в графе")
         sys.exit(1)
 
+    tag_filter = apply_tag_filter(G, args.tag, args.tag_mode)
     direction = args.direction
 
     if direction in ("out", "all"):
         print(f"\n→ Исходящие (на кого указывает «{args.node}»):")
         for _, tgt, data in G.out_edges(args.node, data=True):
+            if tgt not in tag_filter:
+                continue
             label = G.nodes[tgt].get("label", tgt)
             rel = data.get("relation", "")
             print(f"  → {tgt:<20s} «{label}»   [{rel}]")
@@ -122,6 +263,8 @@ def cmd_neighbors(args):
     if direction in ("in", "all"):
         print(f"\n← Входящие (кто указывает на «{args.node}»):")
         for src, _, data in G.in_edges(args.node, data=True):
+            if src not in tag_filter:
+                continue
             label = G.nodes[src].get("label", src)
             rel = data.get("relation", "")
             print(f"  ← {src:<20s} «{label}»   [{rel}]")
@@ -309,9 +452,12 @@ def cmd_islands(args):
 
     from networkx.algorithms.components import weakly_connected_components
 
-    orphans_set = set(n for n, d in G.degree() if d == 0)
+    tag_filter = apply_tag_filter(G, args.tag, args.tag_mode)
+    subgraph = G.subgraph(tag_filter)
+
+    orphans_set = set(n for n, d in subgraph.degree() if d == 0)
     components = sorted(
-        weakly_connected_components(G),
+        weakly_connected_components(subgraph),
         key=len,
         reverse=True,
     )
@@ -389,6 +535,8 @@ def cmd_ring(args):
         sys.exit(1)
 
     from collections import deque
+
+    tag_filter = apply_tag_filter(G, args.tag, args.tag_mode)
 
     # BFS от source node, собираем {node: depth}
     depths: dict[str, int] = {}
@@ -508,6 +656,8 @@ def main():
   beatrice graph components graph.json
   beatrice graph louvain graph.json
   beatrice graph lv graph.json
+  beatrice graph tag add graph.json kafka streaming kafka-экосистема
+  beatrice graph tag ls graph.json
   beatrice graph ring graph.json  kafka  --min 2 --max 4 --direction omnidirectional
   beatrice graph rng graph.json  kafka  --min 0 --max 1 --direction descending
 """,
@@ -527,6 +677,10 @@ def main():
     p_search.add_argument("graph", help="Путь к JSON-файлу графа")
     p_search.add_argument("pattern", help="Строка или регулярное выражение для поиска")
     p_search.add_argument("--regex", "-r", action="store_true", help="Интерпретировать pattern как regex")
+    p_search.add_argument("--tag", action="append", default=[],
+                          help="Фильтр по тегу (можно несколько)")
+    p_search.add_argument("--tag-mode", choices=["any", "all"], default="any",
+                          help="Режим фильтрации тегов: any (любой) или all (все)")
     p_search.set_defaults(func=cmd_search)
 
     # neighbors
@@ -537,6 +691,10 @@ def main():
     p_nei.add_argument("--direction", "-d",
                        choices=["out", "in", "all"], default="all",
                        help="Направление: out (на кого указывает), in (кто указывает), all (все)")
+    p_nei.add_argument("--tag", action="append", default=[],
+                       help="Фильтр по тегу (можно несколько)")
+    p_nei.add_argument("--tag-mode", choices=["any", "all"], default="any",
+                       help="Режим фильтрации тегов: any (любой) или all (все)")
     p_nei.set_defaults(func=cmd_neighbors)
 
     # orphans
@@ -549,6 +707,10 @@ def main():
     p_islands = gsub.add_parser("islands", aliases=["isl", "components"],
                                 help="Показать изолированные кластеры (компоненты связности)")
     p_islands.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_islands.add_argument("--tag", action="append", default=[],
+                          help="Фильтр по тегу (можно несколько)")
+    p_islands.add_argument("--tag-mode", choices=["any", "all"], default="any",
+                          help="Режим фильтрации тегов: any (любой) или all (все)")
     p_islands.set_defaults(func=cmd_islands)
 
     # louvain
@@ -568,6 +730,10 @@ def main():
     p_ring.add_argument("--max", type=int, required=True, help="Максимальная глубина (≥min)")
     p_ring.add_argument("--direction", choices=["descending", "ascending", "omnidirectional"],
                         default="omnidirectional", help="Направление обхода")
+    p_ring.add_argument("--tag", action="append", default=[],
+                        help="Фильтр по тегу (можно несколько)")
+    p_ring.add_argument("--tag-mode", choices=["any", "all"], default="any",
+                        help="Режим фильтрации тегов: any (любой) или all (все)")
     p_ring.set_defaults(func=cmd_ring)
 
     # add-node
@@ -600,6 +766,34 @@ def main():
     p_editn.add_argument("--color", "-c", help="Новый цвет узла (hex)")
     p_editn.add_argument("--size", type=float, help="Новый размер узла")
     p_editn.set_defaults(func=cmd_edit_node)
+
+    # tag
+    p_tag = gsub.add_parser("tag",
+                            help="Управление тегами узлов")
+    tsub = p_tag.add_subparsers(dest="tag_action")
+    tsub.required = True
+
+    p_tag_add = tsub.add_parser("add", help="Добавить теги к узлу")
+    p_tag_add.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_tag_add.add_argument("ids", nargs="+", help="ID узла (узлов)")
+    p_tag_add.add_argument("tags", nargs="+", metavar="tag", help="Теги для добавления")
+    p_tag_add.set_defaults(func=cmd_tag_add)
+
+    p_tag_rm = tsub.add_parser("rm", help="Удалить теги из узла")
+    p_tag_rm.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_tag_rm.add_argument("ids", nargs="+", help="ID узла (узлов)")
+    p_tag_rm.add_argument("tags", nargs="+", metavar="tag", help="Теги для удаления")
+    p_tag_rm.set_defaults(func=cmd_tag_rm)
+
+    p_tag_ls = tsub.add_parser("ls", help="Показать теги")
+    p_tag_ls.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_tag_ls.add_argument("id", nargs="?", default=None, help="ID узла (опционально)")
+    p_tag_ls.set_defaults(func=cmd_tag_ls)
+
+    p_tag_clear = tsub.add_parser("clear", help="Очистить все теги узла")
+    p_tag_clear.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_tag_clear.add_argument("ids", nargs="+", help="ID узла (узлов)")
+    p_tag_clear.set_defaults(func=cmd_tag_clear)
 
     # add-edge
     p_adde = gsub.add_parser("add-edge", aliases=["ae"],

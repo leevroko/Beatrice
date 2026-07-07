@@ -133,6 +133,10 @@ beatrice graph render graph.json
 | `beatrice graph islands <graph>` | Изолированные кластеры (компоненты связности) |
 | `beatrice graph louvain <graph>` | Louvain-сообщества (кластеризация по плотности) |
 | `beatrice graph ring <graph> <node> --min N --max M` | Узлы на диапазоне глубин (BFS + XOR слоёв) |
+| `beatrice graph tag add <graph> <id...> <tag...>` | Добавить теги к узлу |
+| `beatrice graph tag rm <graph> <id...> <tag...>` | Удалить теги из узла |
+| `beatrice graph tag ls <graph> [id]` | Показать теги (всех или узла) |
+| `beatrice graph tag clear <graph> <id...>` | Очистить теги узла |
 | `beatrice graph add-node <graph> <id...>` | Добавить узел с --label,--type,--desc,--color,--size |
 | `beatrice graph edit-node <graph> <id>` | Изменить атрибуты узла (patch-only) |
 | `beatrice graph rm-node <graph> <id...>` | Удалить узел |
