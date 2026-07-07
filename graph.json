@@ -2,115 +2,1269 @@
   "directed": true,
   "multigraph": false,
   "graph": {
-    "beatrice_counter": 1
+    "name": "Графы и ИИ агенты — граф знаний"
   },
   "nodes": [
     {
-      "label": "Kafka",
-      "type": "брокер",
-      "desc": "Распределённый event streaming",
-      "id": "Kafka"
+      "label": "Теория графов",
+      "type": "дисциплина",
+      "desc": "Раздел дискретной математики — изучение графов",
+      "id": "GraphTheory"
     },
     {
-      "label": "ZooKeeper",
-      "type": "координатор",
-      "desc": "Управление кластером",
-      "id": "ZooKeeper"
+      "label": "Граф",
+      "type": "понятие",
+      "desc": "Множество вершин и рёбер между ними",
+      "id": "Graph"
     },
     {
-      "label": "Schema Registry",
-      "type": "сервис",
-      "desc": "Управление схемами данных",
-      "id": "SchemaRegistry"
+      "label": "Ориентированный граф",
+      "type": "тип",
+      "desc": "Рёбра имеют направление (digraph)",
+      "id": "DirectedGraph"
     },
     {
-      "label": "Kafka Connect",
-      "type": "сервис",
-      "desc": "Интеграция с внешними системами",
-      "id": "KafkaConnect"
+      "label": "Неориентированный граф",
+      "type": "тип",
+      "desc": "Рёбра без направления",
+      "id": "UndirectedGraph"
+    },
+    {
+      "label": "Взвешенный граф",
+      "type": "тип",
+      "desc": "Рёбра имеют вес",
+      "id": "WeightedGraph"
+    },
+    {
+      "label": "Мультиграф",
+      "type": "тип",
+      "desc": "Несколько рёбер между одной парой вершин",
+      "id": "Multigraph"
+    },
+    {
+      "label": "DAG",
+      "type": "тип",
+      "desc": "Directed Acyclic Graph — ориентированный граф без циклов",
+      "id": "DAG"
+    },
+    {
+      "label": "Двудольный граф",
+      "type": "тип",
+      "desc": "Вершины можно разделить на две доли, рёбра только между долями",
+      "id": "BipartiteGraph"
+    },
+    {
+      "label": "Полный граф",
+      "type": "тип",
+      "desc": "Каждая пара вершин соединена ребром",
+      "id": "CompleteGraph"
+    },
+    {
+      "label": "Дерево",
+      "type": "тип",
+      "desc": "Связный ациклический граф",
+      "id": "Tree"
+    },
+    {
+      "label": "Связность",
+      "type": "свойство",
+      "desc": "Наличие пути между любыми двумя вершинами",
+      "id": "Connectivity"
+    },
+    {
+      "label": "Сильная связность",
+      "type": "свойство",
+      "desc": "Ориентированный путь в обоих направлениях между любыми вершинами",
+      "id": "StrongConnectivity"
+    },
+    {
+      "label": "Компонента связности",
+      "type": "свойство",
+      "desc": "Максимальный связный подграф",
+      "id": "Component"
+    },
+    {
+      "label": "Степень вершины",
+      "type": "свойство",
+      "desc": "Количество рёбер, инцидентных вершине",
+      "id": "Degree"
+    },
+    {
+      "label": "Плотность графа",
+      "type": "свойство",
+      "desc": "Отношение числа рёбер к максимально возможному",
+      "id": "GraphDensity"
+    },
+    {
+      "label": "Клика",
+      "type": "свойство",
+      "desc": "Подмножество вершин, где каждая пара соединена ребром",
+      "id": "Clique"
+    },
+    {
+      "label": "Изоморфизм",
+      "type": "свойство",
+      "desc": "Структурная эквивалентность двух графов",
+      "id": "Isomorphism"
+    },
+    {
+      "label": "Алгоритмы на графах",
+      "type": "раздел",
+      "desc": "Классические алгоритмы обхода, поиска, оптимизации",
+      "id": "GraphAlgorithms"
+    },
+    {
+      "label": "BFS",
+      "type": "алгоритм",
+      "desc": "Поиск в ширину — обход по уровням от исходной вершины",
+      "id": "BFS"
+    },
+    {
+      "label": "DFS",
+      "type": "алгоритм",
+      "desc": "Поиск в глубину — обход до тупика, затем возврат",
+      "id": "DFS"
+    },
+    {
+      "label": "Алгоритм Дейкстры",
+      "type": "алгоритм",
+      "desc": "Кратчайший путь от одной вершины до всех остальных (невзвешенный)",
+      "id": "Dijkstra"
+    },
+    {
+      "label": "A*",
+      "type": "алгоритм",
+      "desc": "Поиск кратчайшего пути с эвристикой",
+      "id": "AStar"
+    },
+    {
+      "label": "Bellman-Ford",
+      "type": "алгоритм",
+      "desc": "Кратчайший путь с отрицательными весами",
+      "id": "BellmanFord"
+    },
+    {
+      "label": "Floyd-Warshall",
+      "type": "алгоритм",
+      "desc": "Кратчайшие пути между всеми парами вершин",
+      "id": "FloydWarshall"
+    },
+    {
+      "label": "Топологическая сортировка",
+      "type": "алгоритм",
+      "desc": "Линейный порядок вершин в DAG",
+      "id": "TopologicalSort"
+    },
+    {
+      "label": "MST",
+      "type": "алгоритм",
+      "desc": "Minimum Spanning Tree — минимальное покрывающее дерево",
+      "id": "MST"
+    },
+    {
+      "label": "PageRank",
+      "type": "алгоритм",
+      "desc": "Алгоритм ранжирования узлов по важности",
+      "id": "PageRank"
+    },
+    {
+      "label": "Обнаружение сообществ",
+      "type": "алгоритм",
+      "desc": "Разбиение графа на кластеры по плотности связей",
+      "id": "CommunityDetection"
+    },
+    {
+      "label": "Louvain",
+      "type": "алгоритм",
+      "desc": "Алгоритм кластеризации по модулярности",
+      "id": "Louvain"
+    },
+    {
+      "label": "Label Propagation",
+      "type": "алгоритм",
+      "desc": "Распространение меток для обнаружения сообществ",
+      "id": "LabelPropagation"
+    },
+    {
+      "label": "Центральность",
+      "type": "алгоритм",
+      "desc": "Меры важности вершин: degree, betweenness, closeness, eigenvector",
+      "id": "BetweennessCentrality"
+    },
+    {
+      "label": "Граф знаний",
+      "type": "понятие",
+      "desc": "Семантическая сеть — сущности как узлы, связи как отношения",
+      "id": "KnowledgeGraph"
+    },
+    {
+      "label": "RDF",
+      "type": "формат",
+      "desc": "Resource Description Framework — модель тройных утверждений subject-predicate-object",
+      "id": "RDF"
+    },
+    {
+      "label": "SPARQL",
+      "type": "язык",
+      "desc": "Язык запросов к RDF-графам",
+      "id": "SPARQL"
+    },
+    {
+      "label": "OWL",
+      "type": "формат",
+      "desc": "Web Ontology Language — язык описания онтологий",
+      "id": "OWL"
+    },
+    {
+      "label": "Property Graph",
+      "type": "модель",
+      "desc": "Граф с атрибутами (ключами и значениями) на узлах и рёбрах",
+      "id": "PropertyGraph"
+    },
+    {
+      "label": "Node-Link Data",
+      "type": "формат",
+      "desc": "JSON-формат: nodes + edges с атрибутами (NetworkX)",
+      "id": "NodeLinkData"
+    },
+    {
+      "label": "Triple Store",
+      "type": "БД",
+      "desc": "База данных для хранения RDF-троек",
+      "id": "TripleStore"
+    },
+    {
+      "label": "Графовая БД",
+      "type": "БД",
+      "desc": "СУБД для хранения и обработки графовых структур",
+      "id": "GraphDatabase"
+    },
+    {
+      "label": "Neo4j",
+      "type": "БД",
+      "desc": "Лидирующая графовая БД на основе Property Graph Model",
+      "id": "Neo4j"
+    },
+    {
+      "label": "Cypher",
+      "type": "язык",
+      "desc": "Графовый язык запросов Neo4j (declarative, ASCII-art)",
+      "id": "Cypher"
+    },
+    {
+      "label": "Онтология",
+      "type": "понятие",
+      "desc": "Формальная спецификация концептуализации предметной области",
+      "id": "Ontology"
+    },
+    {
+      "label": "Семантическая паутина",
+      "type": "понятие",
+      "desc": "Веб данных, где информация имеет формальное значение",
+      "id": "SemanticWeb"
+    },
+    {
+      "label": "Эмбеддинги графов",
+      "type": "техника",
+      "desc": "Отображение узлов в векторное пространство с сохранением структуры",
+      "id": "Embedding"
+    },
+    {
+      "label": "Graph Embedding",
+      "type": "техника",
+      "desc": "Векторное представление всего графа",
+      "id": "GraphEmbedding"
+    },
+    {
+      "label": "Node2Vec",
+      "type": "алгоритм",
+      "desc": "Эмбеддинги узлов через biased random walk",
+      "id": "Node2Vec"
+    },
+    {
+      "label": "TransE",
+      "type": "алгоритм",
+      "desc": "Эмбеддинги отношений в графе знаний — head + relation ≈ tail",
+      "id": "TransE"
+    },
+    {
+      "label": "ИИ агент",
+      "type": "понятие",
+      "desc": "Автономная программа, воспринимающая среду и действующая для достижения целей",
+      "id": "AIAgent"
+    },
+    {
+      "label": "LLM-агент",
+      "type": "тип",
+      "desc": "Агент на базе большой языковой модели (LLM как мозг)",
+      "id": "LLMAgent"
+    },
+    {
+      "label": "ReAct",
+      "type": "архитектура",
+      "desc": "Reasoning + Acting — чередование рассуждения и действий",
+      "id": "ReAct"
+    },
+    {
+      "label": "Plan-Execute",
+      "type": "архитектура",
+      "desc": "Разделение планирования и исполнения",
+      "id": "PlanExecute"
+    },
+    {
+      "label": "Использование инструментов",
+      "type": "способность",
+      "desc": "Агент вызывает внешние функции/API для выполнения действий",
+      "id": "ToolUse"
+    },
+    {
+      "label": "RAG",
+      "type": "архитектура",
+      "desc": "Retrieval-Augmented Generation — дополнение контекста из внешней базы знаний",
+      "id": "RAG"
+    },
+    {
+      "label": "Память агента",
+      "type": "компонент",
+      "desc": "Краткосрочная (контекст), долгосрочная (внешнее хранилище)",
+      "id": "Memory"
+    },
+    {
+      "label": "Рефлексия",
+      "type": "способность",
+      "desc": "Агент анализирует свои действия и учится на ошибках",
+      "id": "Reflection"
+    },
+    {
+      "label": "Мультиагентные системы",
+      "type": "понятие",
+      "desc": "Несколько агентов взаимодействуют для решения задачи",
+      "id": "MultiAgent"
+    },
+    {
+      "label": "Оркестрация агентов",
+      "type": "паттерн",
+      "desc": "Управление потоком между агентами: supervisor, router, swarm",
+      "id": "AgentOrchestration"
+    },
+    {
+      "label": "Суб-агент",
+      "type": "паттерн",
+      "desc": "Делегирование подзадач специализированным агентам",
+      "id": "Subagent"
+    },
+    {
+      "label": "Граф агентов",
+      "type": "паттерн",
+      "desc": "Агенты как узлы, каналы связи как рёбра в графе",
+      "id": "AgentGraph"
+    },
+    {
+      "label": "Swarm",
+      "type": "паттерн",
+      "desc": "Роевой интеллект — множество простых агентов решают сложную задачу",
+      "id": "Swarm"
+    },
+    {
+      "label": "Agent as State Machine",
+      "type": "архитектура",
+      "desc": "Состояние агента как узел, действия как переходы в графе",
+      "id": "StateMachineAgent"
+    },
+    {
+      "label": "LangChain",
+      "type": "фреймворк",
+      "desc": "Фреймворк для построения LLM-приложений с цепочками и агентами",
+      "id": "LangChain"
+    },
+    {
+      "label": "LangGraph",
+      "type": "фреймворк",
+      "desc": "Графовый фреймворк для State Machine агентов (LangChain)",
+      "id": "LangGraph"
+    },
+    {
+      "label": "CrewAI",
+      "type": "фреймворк",
+      "desc": "Мультиагентный фреймворк — роли, задачи, процессы",
+      "id": "CrewAI"
+    },
+    {
+      "label": "AutoGen",
+      "type": "фреймворк",
+      "desc": "Microsoft — мультиагентные конверсационные системы",
+      "id": "AutoGen"
+    },
+    {
+      "label": "Semantic Kernel",
+      "type": "фреймворк",
+      "desc": "Microsoft — оркестрация ИИ с планировщиком",
+      "id": "SemanticKernel"
+    },
+    {
+      "label": "Pi-агент",
+      "type": "фреймворк",
+      "desc": "Coding-агент с навыками (skills), саб-агентами и пайплайнами",
+      "id": "PiAgent"
+    },
+    {
+      "label": "Claude Code",
+      "type": "инструмент",
+      "desc": "Кодовый агент от Anthropic (Codex)",
+      "id": "ClaudeCode"
+    },
+    {
+      "label": "Майнд-карта",
+      "type": "формат",
+      "desc": "Визуализация идей как граф с корневым узлом и ветвлением",
+      "id": "MindMap"
+    },
+    {
+      "label": "NetworkX",
+      "type": "библиотека",
+      "desc": "Python-библиотека для анализа графов (500+ алгоритмов)",
+      "id": "NetworkX"
+    },
+    {
+      "label": "igraph",
+      "type": "библиотека",
+      "desc": "Быстрая C-based библиотека для анализа графов",
+      "id": "IGraph"
+    },
+    {
+      "label": "graph-tool",
+      "type": "библиотека",
+      "desc": "C++ библиотека через Python — самая быстрая",
+      "id": "GraphTool"
+    },
+    {
+      "label": "PyTorch Geometric",
+      "type": "библиотека",
+      "desc": "GNN на PyTorch — графовые нейронные сети",
+      "id": "PyTorchGeometric"
+    },
+    {
+      "label": "DGL",
+      "type": "библиотека",
+      "desc": "Deep Graph Library — графовые нейросети на PyTorch/TF/MXNet",
+      "id": "DGL"
+    },
+    {
+      "label": "Graphviz",
+      "type": "инструмент",
+      "desc": "Визуализация графов через DOT-язык",
+      "id": "Graphviz"
+    },
+    {
+      "label": "Mermaid",
+      "type": "инструмент",
+      "desc": "Диаграммы из текста в Markdown (flowcharts, mindmaps)",
+      "id": "Mermaid"
+    },
+    {
+      "label": "D3.js",
+      "type": "библиотека",
+      "desc": "JavaScript библиотека для data-driven визуализации (force-directed графы)",
+      "id": "D3JS"
+    },
+    {
+      "label": "Graph RAG",
+      "type": "паттерн",
+      "desc": "RAG на графе знаний — извлечение подграфа как контекст для LLM",
+      "id": "GraphRAG"
+    },
+    {
+      "label": "Векторный поиск",
+      "type": "техника",
+      "desc": "Поиск по семантической близости эмбеддингов",
+      "id": "VectorSearch"
+    },
+    {
+      "label": "GNN",
+      "type": "техника",
+      "desc": "Нейросеть, оперирующая данными на графе — message passing между узлами",
+      "id": "GraphNeuralNetwork"
+    },
+    {
+      "label": "Классификация узлов",
+      "type": "задача",
+      "desc": "Предсказание метки узла по структуре графа",
+      "id": "NodeClassification"
+    },
+    {
+      "label": "Предсказание связей",
+      "type": "задача",
+      "desc": "Определение вероятности ребра между двумя узлами",
+      "id": "LinkPrediction"
+    },
+    {
+      "label": "CLI для графов",
+      "type": "паттерн",
+      "desc": "Терминальные инструменты для транзактных операций над графами",
+      "id": "GraphCLI"
+    },
+    {
+      "label": "Визуализация графов",
+      "type": "техника",
+      "desc": "Force-directed, иерархическая, радиальная компоновка",
+      "id": "GraphVisualization"
+    },
+    {
+      "label": "Граф рассуждений",
+      "type": "понятие",
+      "desc": "Цепочка мыслей (Chain-of-Thought) как путь в графе знаний",
+      "id": "ReasoningGraph"
+    },
+    {
+      "label": "Алгоритм Крускала",
+      "type": "алгоритм",
+      "desc": "MST — добавление рёбер по возрастанию веса",
+      "id": "Kruskal"
+    },
+    {
+      "label": "Алгоритм Прима",
+      "type": "алгоритм",
+      "desc": "MST — построение от вершины",
+      "id": "Prim"
+    },
+    {
+      "label": "Венгерский алгоритм",
+      "type": "алгоритм",
+      "desc": "Назначение задач с минимальной стоимостью",
+      "id": "Hungarian"
+    },
+    {
+      "label": "Максимальный поток",
+      "type": "алгоритм",
+      "desc": "Ford-Fulkerson — поиск макс. потока в сети",
+      "id": "MaxFlow"
+    },
+    {
+      "label": "Минимальный разрез",
+      "type": "алгоритм",
+      "desc": "Разделение графа на две части с минимальным числом рёбер",
+      "id": "MinCut"
+    },
+    {
+      "label": "Раскраска графа",
+      "type": "алгоритм",
+      "desc": "Назначение цветов вершинам — соседи разных цветов",
+      "id": "GraphColoring"
+    },
+    {
+      "label": "Маршрут (walk)",
+      "type": "понятие",
+      "desc": "Последовательность вершин, где соседние соединены ребром",
+      "id": "Walk"
+    },
+    {
+      "label": "Путь",
+      "type": "понятие",
+      "desc": "Маршрут без повторяющихся вершин и рёбер",
+      "id": "PathGraph"
+    },
+    {
+      "label": "Цикл",
+      "type": "понятие",
+      "desc": "Замкнутый путь",
+      "id": "Cycle"
+    },
+    {
+      "label": "JSON-LD",
+      "type": "формат",
+      "desc": "Linked Data в JSON — контекст для RDF",
+      "id": "JSONLD"
+    },
+    {
+      "label": "Turtle",
+      "type": "формат",
+      "desc": "Компактный текстовый формат RDF",
+      "id": "Turtle"
+    },
+    {
+      "label": "ArangoDB",
+      "type": "БД",
+      "desc": "Multi-model БД: документы + графы + key-value",
+      "id": "ArangoDB"
+    },
+    {
+      "label": "JanusGraph",
+      "type": "БД",
+      "desc": "Распределённая графовая БД для анализа large-scale графов",
+      "id": "JanusGraph"
+    },
+    {
+      "label": "Chain-of-Thought",
+      "type": "паттерн",
+      "desc": "Пошаговое рассуждение для улучшения ответов LLM",
+      "id": "ChainOfThought"
+    },
+    {
+      "label": "Tree-of-Thoughts",
+      "type": "паттерн",
+      "desc": "Дерево рассуждений — ветвление и поиск",
+      "id": "TreeOfThoughts"
+    },
+    {
+      "label": "Prompt Chaining",
+      "type": "паттерн",
+      "desc": "Последовательность промптов, где выход одного — вход другого",
+      "id": "PromptChaining"
+    },
+    {
+      "label": "Оркестратор",
+      "type": "паттерн",
+      "desc": "Главный агент, делегирующий задачи воркерам",
+      "id": "OrchestratorAgent"
+    },
+    {
+      "label": "Router",
+      "type": "паттерн",
+      "desc": "Агент-маршрутизатор — направляет запрос к нужному обработчику",
+      "id": "RouterAgent"
+    },
+    {
+      "label": "Evaluator",
+      "type": "паттерн",
+      "desc": "Агент-оценщик — проверяет качество результата",
+      "id": "EvaluatorAgent"
+    },
+    {
+      "label": "Графовые vs Реляционные БД",
+      "type": "понятие",
+      "desc": "Сравнение моделей: графы для связей, SQL для таблиц",
+      "id": "GraphDBvsRelational"
+    },
+    {
+      "label": "Feature Engineering на графах",
+      "type": "техника",
+      "desc": "Извлечение признаков из структуры графа для ML",
+      "id": "GraphFeatureEngineering"
+    },
+    {
+      "label": "Тест на изоморфизм",
+      "type": "алгоритм",
+      "desc": "Проверка структурной эквивалентности двух графов",
+      "id": "GraphIsomorphismTest"
+    },
+    {
+      "label": "Apache Spark",
+      "type": "инструмент",
+      "desc": "Движок обработки данных с GraphX для графовых вычислений",
+      "id": "ApacheSpark"
     },
     {
       "label": "Kafka Streams",
-      "type": "библиотека",
-      "desc": "Stream processing",
-      "id": "KafkaStreams"
-    },
-    {
-      "label": "KRaft",
-      "type": "протокол",
-      "desc": "Raft-замена ZooKeeper",
-      "id": "KRaft"
-    },
-    {
-      "label": "Topic",
-      "type": "структура",
-      "desc": "Очередь сообщений",
-      "id": "Topic"
-    },
-    {
-      "label": "Consumer Group",
-      "type": "консьюмер",
-      "desc": "Группа консьюмеров",
-      "id": "ConsumerGroup"
-    },
-    {
-      "label": "Узел-сирота",
-      "type": "unknown",
-      "desc": "Не имеет связей",
-      "id": "OrphanNode"
-    },
-    {
-      "id": "test"
-    },
-    {
-      "label": "tests link",
-      "id": "node1"
+      "type": "инструмент",
+      "desc": "Потоковая обработка с графами состояний",
+      "id": "KafkaStreaming"
     }
   ],
   "edges": [
     {
-      "relation": "использует",
-      "source": "Kafka",
-      "target": "ZooKeeper"
+      "relation": "изучает",
+      "source": "GraphTheory",
+      "target": "Graph"
     },
     {
-      "relation": "интегрируется с",
-      "source": "Kafka",
-      "target": "SchemaRegistry"
+      "relation": "включает",
+      "source": "GraphTheory",
+      "target": "GraphAlgorithms"
+    },
+    {
+      "relation": "питает",
+      "source": "GraphTheory",
+      "target": "GraphNeuralNetwork"
+    },
+    {
+      "relation": "изучает",
+      "source": "GraphTheory",
+      "target": "Walk"
+    },
+    {
+      "relation": "подтип",
+      "source": "Graph",
+      "target": "DirectedGraph"
+    },
+    {
+      "relation": "подтип",
+      "source": "Graph",
+      "target": "UndirectedGraph"
+    },
+    {
+      "relation": "вариант",
+      "source": "Graph",
+      "target": "WeightedGraph"
+    },
+    {
+      "relation": "вариант",
+      "source": "Graph",
+      "target": "Multigraph"
+    },
+    {
+      "relation": "подтип",
+      "source": "Graph",
+      "target": "BipartiteGraph"
+    },
+    {
+      "relation": "подтип",
+      "source": "Graph",
+      "target": "CompleteGraph"
+    },
+    {
+      "relation": "подтип",
+      "source": "Graph",
+      "target": "Tree"
+    },
+    {
+      "relation": "имеет",
+      "source": "Graph",
+      "target": "Connectivity"
+    },
+    {
+      "relation": "имеет",
+      "source": "Graph",
+      "target": "Degree"
+    },
+    {
+      "relation": "имеет",
+      "source": "Graph",
+      "target": "GraphDensity"
     },
     {
       "relation": "содержит",
-      "source": "Kafka",
-      "target": "Topic"
+      "source": "Graph",
+      "target": "Clique"
     },
     {
-      "relation": "переходит на",
-      "source": "Kafka",
-      "target": "KRaft"
+      "relation": "определяет",
+      "source": "Graph",
+      "target": "Isomorphism"
     },
     {
-      "relation": "записывает в",
-      "source": "KafkaConnect",
-      "target": "Kafka"
+      "relation": "подтип",
+      "source": "DirectedGraph",
+      "target": "DAG"
     },
     {
-      "relation": "читает из",
-      "source": "KafkaStreams",
-      "target": "Kafka"
+      "relation": "имеет",
+      "source": "DirectedGraph",
+      "target": "StrongConnectivity"
     },
     {
-      "relation": "заменяет",
-      "source": "KRaft",
-      "target": "ZooKeeper"
+      "relation": "применяется к",
+      "source": "DAG",
+      "target": "TopologicalSort"
     },
     {
-      "relation": "читается",
-      "source": "Topic",
-      "target": "ConsumerGroup"
+      "relation": "выделяет",
+      "source": "Connectivity",
+      "target": "Component"
     },
     {
-      "source": "node1",
-      "target": "OrphanNode"
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "BFS"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "DFS"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "Dijkstra"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "AStar"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "BellmanFord"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "FloydWarshall"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "TopologicalSort"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "MST"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "PageRank"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "CommunityDetection"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "BetweennessCentrality"
+    },
+    {
+      "relation": "реализованы в",
+      "source": "GraphAlgorithms",
+      "target": "NetworkX"
+    },
+    {
+      "relation": "реализованы в",
+      "source": "GraphAlgorithms",
+      "target": "IGraph"
+    },
+    {
+      "relation": "реализованы в",
+      "source": "GraphAlgorithms",
+      "target": "GraphTool"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "Kruskal"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "Prim"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "MaxFlow"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "MinCut"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "GraphColoring"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "Hungarian"
+    },
+    {
+      "relation": "включает",
+      "source": "GraphAlgorithms",
+      "target": "GraphIsomorphismTest"
+    },
+    {
+      "relation": "алгоритм",
+      "source": "MST",
+      "target": "Kruskal"
+    },
+    {
+      "relation": "алгоритм",
+      "source": "MST",
+      "target": "Prim"
+    },
+    {
+      "relation": "реализуется",
+      "source": "CommunityDetection",
+      "target": "Louvain"
+    },
+    {
+      "relation": "реализуется",
+      "source": "CommunityDetection",
+      "target": "LabelPropagation"
+    },
+    {
+      "relation": "использует",
+      "source": "KnowledgeGraph",
+      "target": "RDF"
+    },
+    {
+      "relation": "альтернатива",
+      "source": "KnowledgeGraph",
+      "target": "PropertyGraph"
+    },
+    {
+      "relation": "требует",
+      "source": "KnowledgeGraph",
+      "target": "Ontology"
+    },
+    {
+      "relation": "хранится в",
+      "source": "KnowledgeGraph",
+      "target": "TripleStore"
+    },
+    {
+      "relation": "хранится в",
+      "source": "KnowledgeGraph",
+      "target": "GraphDatabase"
+    },
+    {
+      "relation": "запрашивается через",
+      "source": "KnowledgeGraph",
+      "target": "SPARQL"
+    },
+    {
+      "relation": "использует",
+      "source": "KnowledgeGraph",
+      "target": "Embedding"
+    },
+    {
+      "relation": "использует",
+      "source": "KnowledgeGraph",
+      "target": "GraphNeuralNetwork"
+    },
+    {
+      "relation": "используется в",
+      "source": "KnowledgeGraph",
+      "target": "GraphRAG"
+    },
+    {
+      "relation": "формат",
+      "source": "KnowledgeGraph",
+      "target": "JSONLD"
+    },
+    {
+      "relation": "формат",
+      "source": "KnowledgeGraph",
+      "target": "Turtle"
+    },
+    {
+      "relation": "запрашивается через",
+      "source": "RDF",
+      "target": "SPARQL"
+    },
+    {
+      "relation": "сериализация",
+      "source": "RDF",
+      "target": "JSONLD"
+    },
+    {
+      "relation": "сериализация",
+      "source": "RDF",
+      "target": "Turtle"
+    },
+    {
+      "relation": "описывает",
+      "source": "OWL",
+      "target": "Ontology"
+    },
+    {
+      "relation": "формат",
+      "source": "PropertyGraph",
+      "target": "NodeLinkData"
+    },
+    {
+      "relation": "реализует",
+      "source": "PropertyGraph",
+      "target": "Neo4j"
+    },
+    {
+      "relation": "реализация",
+      "source": "GraphDatabase",
+      "target": "ArangoDB"
+    },
+    {
+      "relation": "реализация",
+      "source": "GraphDatabase",
+      "target": "JanusGraph"
+    },
+    {
+      "relation": "сравнивается с",
+      "source": "GraphDatabase",
+      "target": "GraphDBvsRelational"
+    },
+    {
+      "relation": "использует",
+      "source": "Neo4j",
+      "target": "Cypher"
+    },
+    {
+      "relation": "алгоритм",
+      "source": "Embedding",
+      "target": "Node2Vec"
+    },
+    {
+      "relation": "алгоритм",
+      "source": "Embedding",
+      "target": "TransE"
+    },
+    {
+      "relation": "родственный",
+      "source": "GraphEmbedding",
+      "target": "GraphNeuralNetwork"
+    },
+    {
+      "relation": "подтип",
+      "source": "AIAgent",
+      "target": "LLMAgent"
+    },
+    {
+      "relation": "реализует",
+      "source": "LLMAgent",
+      "target": "ReAct"
+    },
+    {
+      "relation": "реализует",
+      "source": "LLMAgent",
+      "target": "PlanExecute"
+    },
+    {
+      "relation": "имеет",
+      "source": "LLMAgent",
+      "target": "ToolUse"
+    },
+    {
+      "relation": "использует",
+      "source": "LLMAgent",
+      "target": "RAG"
+    },
+    {
+      "relation": "имеет",
+      "source": "LLMAgent",
+      "target": "Memory"
+    },
+    {
+      "relation": "реализует",
+      "source": "LLMAgent",
+      "target": "Reflection"
+    },
+    {
+      "relation": "входит в",
+      "source": "LLMAgent",
+      "target": "MultiAgent"
+    },
+    {
+      "relation": "использует",
+      "source": "LLMAgent",
+      "target": "GraphRAG"
+    },
+    {
+      "relation": "строит",
+      "source": "LLMAgent",
+      "target": "ReasoningGraph"
+    },
+    {
+      "relation": "использует",
+      "source": "LLMAgent",
+      "target": "ChainOfThought"
+    },
+    {
+      "relation": "использует",
+      "source": "LLMAgent",
+      "target": "TreeOfThoughts"
+    },
+    {
+      "relation": "вариант",
+      "source": "RAG",
+      "target": "GraphRAG"
+    },
+    {
+      "relation": "использует",
+      "source": "MultiAgent",
+      "target": "AgentOrchestration"
+    },
+    {
+      "relation": "разновидность",
+      "source": "MultiAgent",
+      "target": "Swarm"
+    },
+    {
+      "relation": "включает",
+      "source": "AgentOrchestration",
+      "target": "Subagent"
+    },
+    {
+      "relation": "моделируется как",
+      "source": "AgentOrchestration",
+      "target": "AgentGraph"
+    },
+    {
+      "relation": "включает",
+      "source": "AgentOrchestration",
+      "target": "OrchestratorAgent"
+    },
+    {
+      "relation": "включает",
+      "source": "AgentOrchestration",
+      "target": "PromptChaining"
+    },
+    {
+      "relation": "основан на",
+      "source": "AgentGraph",
+      "target": "Graph"
+    },
+    {
+      "relation": "реализует",
+      "source": "AgentGraph",
+      "target": "StateMachineAgent"
+    },
+    {
+      "relation": "содержит",
+      "source": "LangChain",
+      "target": "LangGraph"
+    },
+    {
+      "relation": "строит",
+      "source": "LangChain",
+      "target": "LLMAgent"
+    },
+    {
+      "relation": "реализует",
+      "source": "LangGraph",
+      "target": "StateMachineAgent"
+    },
+    {
+      "relation": "реализует",
+      "source": "LangGraph",
+      "target": "AgentGraph"
+    },
+    {
+      "relation": "строит",
+      "source": "CrewAI",
+      "target": "MultiAgent"
+    },
+    {
+      "relation": "реализует",
+      "source": "CrewAI",
+      "target": "AgentOrchestration"
+    },
+    {
+      "relation": "строит",
+      "source": "AutoGen",
+      "target": "MultiAgent"
+    },
+    {
+      "relation": "реализует",
+      "source": "SemanticKernel",
+      "target": "PlanExecute"
+    },
+    {
+      "relation": "включает",
+      "source": "PiAgent",
+      "target": "Subagent"
+    },
+    {
+      "relation": "моделирует",
+      "source": "NetworkX",
+      "target": "PropertyGraph"
+    },
+    {
+      "relation": "формат",
+      "source": "NetworkX",
+      "target": "NodeLinkData"
+    },
+    {
+      "relation": "использует",
+      "source": "GraphRAG",
+      "target": "VectorSearch"
+    },
+    {
+      "relation": "использует",
+      "source": "GraphRAG",
+      "target": "Embedding"
+    },
+    {
+      "relation": "решает",
+      "source": "GraphNeuralNetwork",
+      "target": "NodeClassification"
+    },
+    {
+      "relation": "решает",
+      "source": "GraphNeuralNetwork",
+      "target": "LinkPrediction"
+    },
+    {
+      "relation": "реализуется",
+      "source": "GraphNeuralNetwork",
+      "target": "PyTorchGeometric"
+    },
+    {
+      "relation": "реализуется",
+      "source": "GraphNeuralNetwork",
+      "target": "DGL"
+    },
+    {
+      "relation": "используется для",
+      "source": "GraphNeuralNetwork",
+      "target": "GraphFeatureEngineering"
+    },
+    {
+      "relation": "строится на",
+      "source": "GraphCLI",
+      "target": "NetworkX"
+    },
+    {
+      "relation": "использует",
+      "source": "GraphVisualization",
+      "target": "D3JS"
+    },
+    {
+      "relation": "использует",
+      "source": "GraphVisualization",
+      "target": "Graphviz"
+    },
+    {
+      "relation": "использует",
+      "source": "GraphVisualization",
+      "target": "Mermaid"
+    },
+    {
+      "relation": "вариант",
+      "source": "ReasoningGraph",
+      "target": "KnowledgeGraph"
+    },
+    {
+      "relation": "основан на",
+      "source": "ReasoningGraph",
+      "target": "Graph"
+    },
+    {
+      "relation": "моделирует",
+      "source": "ReasoningGraph",
+      "target": "ChainOfThought"
+    },
+    {
+      "relation": "вариант",
+      "source": "ReasoningGraph",
+      "target": "TreeOfThoughts"
+    },
+    {
+      "relation": "двойственная задача",
+      "source": "MaxFlow",
+      "target": "MinCut"
+    },
+    {
+      "relation": "частный случай",
+      "source": "Walk",
+      "target": "PathGraph"
+    },
+    {
+      "relation": "замкнутая версия",
+      "source": "PathGraph",
+      "target": "Cycle"
+    },
+    {
+      "relation": "содержит",
+      "source": "OrchestratorAgent",
+      "target": "RouterAgent"
+    },
+    {
+      "relation": "содержит",
+      "source": "OrchestratorAgent",
+      "target": "EvaluatorAgent"
     }
   ]
 }
