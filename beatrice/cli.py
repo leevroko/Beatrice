@@ -1398,6 +1398,11 @@ D3_CODE_PLACEHOLDER
     transition:background .2s;
   }}
   .controls button:hover {{ background:{panel_border}; }}
+  .controls select {{
+    background:{panel_bg}; color:{fg}; border:1px solid {panel_border};
+    padding:8px 14px; border-radius:6px; cursor:pointer; font-size:13px;
+  }}
+  .controls select:hover {{ background:{panel_border}; }}
   .tooltip {{
     position:absolute; padding:12px 16px; background:{panel_bg}; border:1px solid {panel_border};
     border-radius:8px; font-size:13px; pointer-events:none; max-width:300px;
@@ -1422,6 +1427,9 @@ D3_CODE_PLACEHOLDER
   <button onclick="toggleOrphans()">👻 Сироты</button>
   <button onclick="toggleDirection()">↔ Направления</button>
   <button onclick="toggleLouvain()">🧬 Сообщества</button>
+  <select id="community-select" onchange="selectCommunity(this.value)" style="display:none">
+    <option value="">— Все сообщества —</option>
+  </select>
   <select id="tag-select" onchange="applyTagHighlight()">
     <option value="">— Тег —</option>
   </select>
@@ -1499,12 +1507,52 @@ d3.select("#legend").html(
     ).join(''));
 function resetZoom(){{svg.transition().duration(750).call(d3.zoom().transform,d3.zoomIdentity);}}
 let showOrphans=true;
-function toggleOrphans(){{showOrphans=!showOrphans;node.style("opacity",d=>showOrphans?1:(d.isOrphan?0:1));}}
+function toggleOrphans(){{
+    showOrphans=!showOrphans;
+    updateVisibility();
+}}
 let showDir=true;
 function toggleDirection(){{showDir=!showDir;link.attr("marker-end",showDir?"url(#arrow)":null);}}
 let showLouvain=false;
+let focusCommunity=null;
 let tagHighlightActive=false;
 let tagHighlightColor="#e94560";
+
+// Заполняем select сообществ
+const commSelect = document.getElementById("community-select");
+const usedComms = [...new Set(nodesData.map(d=>d.community))].sort((a,b)=>a-b);
+usedComms.forEach(i =>{{
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = `Сообщество #${{i+1}}`;
+    commSelect.appendChild(opt);
+}});
+
+function selectCommunity(val){{
+    focusCommunity = val ? parseInt(val) : null;
+    updateVisibility();
+}}
+
+function updateVisibility(){{
+    node.each(function(d){{
+        const g = d3.select(this);
+        const circle = g.select("circle");
+        let visible = true;
+        if(showLouvain && focusCommunity!==null && d.community!==focusCommunity){{
+            visible = false;
+        }}
+        if(visible && !showOrphans && d.isOrphan){{
+            visible = false;
+        }}
+        g.style("display", visible ? null : "none");
+        if(visible && showLouvain){{
+            circle.attr("fill", d.communityColor);
+        }}else if(visible){{
+            circle.attr("fill", d.color);
+        }}
+    }});
+}}
+
 function applyTagHighlight(){{
     const sel = document.getElementById("tag-select").value;
     const color = document.getElementById("tag-color").value;
@@ -1512,30 +1560,33 @@ function applyTagHighlight(){{
     if(!sel){{
         tagHighlightActive=false;
         node.selectAll("circle").transition().duration(300)
-            .attr("fill",d=>d.color);
+            .attr("fill",d=>showLouvain?d.communityColor:d.color);
         return;
     }}
     tagHighlightActive=true;
     node.selectAll("circle").transition().duration(300)
-        .attr("fill",d=>d.tags&&d.tags.includes(sel)?color:d.color);
+        .attr("fill",d=>d.tags&&d.tags.includes(sel)?color:(showLouvain?d.communityColor:d.color));
 }}
+
 function toggleLouvain(){{
     showLouvain=!showLouvain;
-    node.selectAll("circle").transition().duration(300)
-        .attr("fill",d=>showLouvain?d.communityColor:d.color);
+    const commSelect = document.getElementById("community-select");
     if(showLouvain){{
-        // Обновить легенду на сообщества
-        const used = [...new Set(nodesData.filter(d=>louvainAvailable).map(d=>d.community))];
+        commSelect.style.display = "inline";
         const palette = {json.dumps(louvain_palette, ensure_ascii=False)};
         d3.select("#legend").html(
-            used.map(i=>`<div class="legend-item"><span class="legend-dot" style="background:${{palette[i%palette.length]}}"></span>Сообщество #${{i+1}}</div>`).join(''));
+            usedComms.map(i=>`<div class="legend-item"><span class="legend-dot" style="background:${{palette[i%palette.length]}}"></span>Сообщество #${{i+1}}</div>`).join(''));
     }}else{{
-        // Восстановить легенду по типам
+        commSelect.style.display = "none";
+        focusCommunity = null;
+        commSelect.value = "";
         d3.select("#legend").html(
             Object.entries(typeColors).filter(([k])=>k!=='unknown').map(([t,c])=>
                 `<div class="legend-item"><span class="legend-dot" style="background:${{c}}"></span>${{t}}</div>`
             ).join(''));
-    }}}}
+    }}
+    updateVisibility();
+}}
 d3.select("body").on("click",(e)=>{{if(!e.target.closest("g"))tooltip.style("display","none");}});
 window.addEventListener("resize",()=>{{
     const w=window.innerWidth,h=window.innerHeight;
