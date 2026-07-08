@@ -61,6 +61,7 @@ class FakeArgs:
         self.by_community = False
         self.untagged = False
         self.list = False
+        self.without = []
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -1154,6 +1155,18 @@ class TestTagLsExtended(GraphTestCase):
         text = out.getvalue()
         self.assertIn("kafka", text)
         self.assertIn("zk", text)
+
+    def test_tag_ls_without(self):
+        """--without показывает узлы без указанного тега."""
+        cmd_tag_add(FakeArgs(graph=self.path, ids=["kafka"],
+                             tags=["special"]))
+        args = FakeArgs(graph=self.path, id=None, without=["special"])
+        with capture_stdout() as out:
+            cmd_tag_ls(args)
+        text = out.getvalue()
+        self.assertNotIn("kafka", text)
+        self.assertIn("zk", text)
+        self.assertIn("connect", text)
 
 
 if __name__ == "__main__":

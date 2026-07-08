@@ -271,6 +271,21 @@ def cmd_tag_ls(args):
             print(f"  {n:<25s} «{label}»" + (f"  {type_str}" if type_str else ""))
         return
 
+    # --without TAG — узлы, у которых нет указанного тега
+    if args.without and not args.tag and not args.untagged:
+        without_set = set(args.without)
+        result = [
+            n for n in G.nodes()
+            if not (without_set & set(G.nodes[n].get("tags", [])))
+        ]
+        tags_str = ", ".join(args.without)
+        print(f"Узлы без тега «{tags_str}» ({len(result)}):")
+        for n in sorted(result):
+            label = G.nodes[n].get("label", n)
+            type_str = G.nodes[n].get("type", "")
+            print(f"  {n:<25s} «{label}»" + (f"  {type_str}" if type_str else ""))
+        return
+
     # --counts (без --tag)
     if args.counts:
         for t, cnt in sorted(counter.items(), key=lambda x: -x[1]):
@@ -1173,6 +1188,9 @@ def main():
                           help="Вывести ID узлов с указанными тегами (по одному на строку)")
     p_tag_ls.add_argument("--untagged", action="store_true",
                           help="Показать узлы без тегов")
+    p_tag_ls.add_argument("--without", action="append", default=[],
+                          metavar="TAG",
+                          help="Показать узлы без указанного тега (можно несколько)")
     p_tag_ls.set_defaults(func=cmd_tag_ls)
 
     p_tag_clear = tsub.add_parser("clear", help="Очистить все теги узла")
@@ -1366,7 +1384,9 @@ def cmd_render(args):
 <head>
 <meta charset="utf-8">
 <title>Beatrice — Knowledge Graph</title>
-<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+D3_CODE_PLACEHOLDER
+</script>
 <style>
   * {{ margin:0; padding:0; box-sizing:border-box; }}
   body {{ background:{bg}; font-family:'Segoe UI',sans-serif; overflow:hidden; color:{fg}; }}
@@ -1525,6 +1545,16 @@ window.addEventListener("resize",()=>{{
 </script>
 </body>
 </html>"""
+
+    # Встраиваем D3.js вместо CDN-ссылки (работает без интернета, file://)
+    d3_path = Path(__file__).resolve().parent / "d3.v7.min.js"
+    if d3_path.exists():
+        d3_code = d3_path.read_text(encoding="utf-8")
+        html = html.replace("D3_CODE_PLACEHOLDER", d3_code)
+    else:
+        # fallback: CDN
+        html = html.replace("D3_CODE_PLACEHOLDER",
+            f"""const d3 = await import('https://d3js.org/d3.v7.min.js');""")
 
     Path(output).write_text(html, encoding="utf-8")
     print(f"✅ HTML: {Path(output).resolve()}")
