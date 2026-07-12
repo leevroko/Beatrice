@@ -50,6 +50,13 @@ export const NodesList: React.FC = () => {
             onChange={(e) => { graph.showOrphansOnly = e.target.checked; }} />
           👻 Сироты
         </label>
+        <select value={graph.filterNoNote} onChange={(e) => {
+          graph.filterNoNote = e.target.value;
+        }}>
+          <option value="">Все конспекты</option>
+          <option value="with">📝 С конспектом</option>
+          <option value="without">📝 Без конспекта</option>
+        </select>
       </div>
       <div className="panel-body">
         {nodes.map((n) => (

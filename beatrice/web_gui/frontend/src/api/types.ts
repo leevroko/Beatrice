@@ -10,6 +10,7 @@ export interface NodeData {
   color: string;
   size: number;
   tags: string[];
+  note?: string;
   community?: number;
   isOrphan?: boolean;
   degree?: number;

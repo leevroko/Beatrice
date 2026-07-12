@@ -537,6 +537,8 @@ def cmd_add_node(args):
             attrs["color"] = args.color
         if args.size:
             attrs["size"] = args.size
+        if getattr(args, 'note', None):
+            attrs["note"] = args.note
         G.add_node(nid, **attrs)
         ids_added.append(nid)
 
@@ -945,6 +947,8 @@ def cmd_edit_node(args):
         changes["color"] = args.color
     if args.size is not None:
         changes["size"] = args.size
+    if getattr(args, 'note', None) is not None:
+        changes["note"] = args.note
 
     if not changes:
         print("Ничего не изменено")
@@ -1394,6 +1398,7 @@ def cmd_render(args):
             "community": comm_idx,
             "communityColor": louvain_palette[comm_idx % len(louvain_palette)],
             "tags": G.nodes[n].get("tags", []),
+            "note": G.nodes[n].get("note", ""),
         })
 
     edges_data = []
@@ -1519,6 +1524,7 @@ const node = container.append("g").selectAll("g").data(nodesData).join("g")
             .html('<div class="title">'+d.label+'</div>'
                 +(d.desc?'<div class="sub">'+d.desc+'</div>':'')
                 +'<div class="sub" style="margin-top:4px">Тип: '+(d.type||'—')+'</div>'
+                +(d.note?'<div class="sub" style="margin-top:4px">📝 <a href="'+d.note+'" target="_blank">Конспект</a></div>':'')
                 +(d.isOrphan?'<div class="sub" style="color:#ff6b6b;margin-top:4px">👻 Сирота</div>':''));
     }})
     .on("dblclick",(e,d)=>{{d.fx=null;d.fy=null;simulation.alpha(0.3).restart();}});
@@ -1713,6 +1719,7 @@ def cmd_batch(args):
             parser.add_argument("--desc", "-d", default=None)
             parser.add_argument("--color", "-c", default=None)
             parser.add_argument("--size", type=float, default=None)
+            parser.add_argument("--note", "-n", default=None)
             subargs = parser.parse_args(parts[1:])
             fake.ids = subargs.ids
             fake.label = subargs.label
@@ -1720,6 +1727,7 @@ def cmd_batch(args):
             fake.desc = subargs.desc
             fake.color = subargs.color
             fake.size = subargs.size
+            fake.note = subargs.note
             _batch_cmd_add_node(G, fake)
 
         elif cmd_name == "add-edge":
@@ -1840,6 +1848,8 @@ def _batch_cmd_add_node(G, fake):
             attrs["color"] = fake.color
         if fake.size:
             attrs["size"] = fake.size
+        if getattr(fake, 'note', None):
+            attrs["note"] = fake.note
         G.add_node(nid, **attrs)
         print(f"  + {nid}")
 

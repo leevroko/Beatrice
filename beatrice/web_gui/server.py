@@ -426,6 +426,7 @@ class WebGraphManager:
             "color": nd.get("color", "#999"),
             "size": nd.get("size", 10),
             "tags": nd.get("tags", []),
+            "note": nd.get("note", ""),
         }
 
     def _edge_data(self, source: str, target: str) -> dict:

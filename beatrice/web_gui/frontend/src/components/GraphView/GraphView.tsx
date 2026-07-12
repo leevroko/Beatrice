@@ -17,6 +17,7 @@ interface SimNode extends d3.SimulationNodeDatum {
   size: number;
   tags: string[];
   isOrphan: boolean;
+  note: string;
   community: number;
   communityColor: string;
 }
@@ -50,6 +51,7 @@ function buildGraphData(graph: ReturnType<typeof useGraph>):
     size: n.size || 10,
     tags: n.tags,
     isOrphan: n.isOrphan || false,
+    note: n.note || '',
     community: n.community ?? 0,
     communityColor: LOUVAIN_PALETTE[(n.community ?? 0) % LOUVAIN_PALETTE.length],
   }));
@@ -79,6 +81,7 @@ export const GraphView: React.FC = () => {
   const [tagHighlight, setTagHighlight] = useState('');
   const [tagColor, setTagColor] = useState('#e94560');
   const [showOrphans, setShowOrphans] = useState(true);
+  const [graphNoteFilter, setGraphNoteFilter] = useState('');  // '' = все, 'with' = с конспектом, 'without' = без
 
   // ────── Один раз при монтировании: создаём SVG, zoom, simulation ──────
   useEffect(() => {
@@ -197,6 +200,7 @@ export const GraphView: React.FC = () => {
         ${d.desc ? `<div class="sub">${d.desc}</div>` : ''}
         <div class="sub" style="margin-top:4px">Тип: ${d.type || '—'}</div>
         ${d.tags.length > 0 ? `<div class="sub">Теги: ${d.tags.join(', ')}</div>` : ''}
+        ${d.note ? `<div class="sub" style="margin-top:4px">📝 <a href="${d.note}" target="_blank">Конспект</a></div>` : ''}
         ${d.isOrphan ? '<div class="sub" style="color:#ff6b6b;margin-top:4px">👻 Сирота</div>' : ''}
         <div class="sub" style="color:#666;margin-top:2px;font-size:10px">ID: ${d.id}</div>
       `;
@@ -323,6 +327,7 @@ export const GraphView: React.FC = () => {
           ${d.desc ? `<div class="sub">${d.desc}</div>` : ''}
           <div class="sub" style="margin-top:4px">Тип: ${d.type || '—'}</div>
           ${d.tags.length > 0 ? `<div class="sub">Теги: ${d.tags.join(', ')}</div>` : ''}
+          ${d.note ? `<div class="sub" style="margin-top:4px">📝 <a href="${d.note}" target="_blank">Конспект</a></div>` : ''}
           ${d.isOrphan ? '<div class="sub" style="color:#ff6b6b;margin-top:4px">👻 Сирота</div>' : ''}
           <div class="sub" style="color:#666;margin-top:2px;font-size:10px">ID: ${d.id}</div>
         `;
@@ -391,7 +396,7 @@ export const GraphView: React.FC = () => {
     applyVisualState(d3Ref.current);
     updateLegend();
   }, [showDir, showLouvain, hiddenCommunities, tagHighlight, tagColor,
-      showOrphans, graph.selectedNodeId]);
+      showOrphans, graphNoteFilter, graph.selectedNodeId]);
 
   // ────── Вспомогательные функции ──────
 
@@ -433,6 +438,14 @@ export const GraphView: React.FC = () => {
         g.style('display', 'none');
         return;
       }
+      if (graphNoteFilter === 'without' && d.note) {
+        g.style('display', 'none');
+        return;
+      }
+      if (graphNoteFilter === 'with' && !d.note) {
+        g.style('display', 'none');
+        return;
+      }
       g.style('display', null);
 
       // Highlight
@@ -446,8 +459,15 @@ export const GraphView: React.FC = () => {
       } else {
         g.style('opacity', null);
         if (!text.empty()) text.attr('fill', '#fff');
-        circle.attr('stroke', d.isOrphan ? '#ff6b6b' : '#fff')
-               .attr('stroke-width', d.isOrphan ? 3 : 1.5);
+        const baseStroke = d.isOrphan ? '#ff6b6b' : '#fff';
+        const baseWidth = d.isOrphan ? 3 : 1.5;
+        if (graphNoteFilter === 'without' && !d.note) {
+          circle.attr('stroke', '#e94560').attr('stroke-width', 2)
+                .attr('stroke-dasharray', '4,3');
+        } else {
+          circle.attr('stroke', baseStroke).attr('stroke-width', baseWidth)
+                .attr('stroke-dasharray', null);
+        }
       }
     });
   }
@@ -560,6 +580,12 @@ export const GraphView: React.FC = () => {
         </select>
         <input type="color" value={tagColor}
           onChange={(e) => setTagColor(e.target.value)} />
+        <select value={graphNoteFilter} onChange={(e) => setGraphNoteFilter(e.target.value)}
+          style={{ fontSize: 11, padding: '3px 6px', maxWidth: 120 }}>
+          <option value="">📝 Все конспекты</option>
+          <option value="with">📝 С конспектом</option>
+          <option value="without">📝 Без конспекта</option>
+        </select>
       </div>
 
       <div className="graph-info">

@@ -11,6 +11,7 @@ export const NodeEditorForm: React.FC<{ node: NodeData }> = ({ node }) => {
   const [desc, setDesc] = useState(node.desc);
   const [color, setColor] = useState(node.color || '#999');
   const [size, setSize] = useState(node.size || 10);
+  const [note, setNote] = useState(node.note || '');
   const [showDelete, setShowDelete] = useState(false);
   const [showMove, setShowMove] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -22,6 +23,7 @@ export const NodeEditorForm: React.FC<{ node: NodeData }> = ({ node }) => {
     setDesc(node.desc);
     setColor(node.color || '#999');
     setSize(node.size || 10);
+    setNote(node.note || '');
     setHasChanges(false);
   }, [node.id]);
 
@@ -34,7 +36,7 @@ export const NodeEditorForm: React.FC<{ node: NodeData }> = ({ node }) => {
 
   const handleSave = async () => {
     try {
-      await graph.updateNode(node.id, { label, type, desc, color, size });
+      await graph.updateNode(node.id, { label, type, desc, color, size, note });
       setHasChanges(false);
     } catch (e) {
       alert(`Ошибка: ${e}`);
@@ -63,7 +65,12 @@ export const NodeEditorForm: React.FC<{ node: NodeData }> = ({ node }) => {
   return (
     <div className="editor-form">
       <div className="field">
-        <label>ID</label>
+        <label>ID
+          <button className="btn-sm" onClick={() => navigator.clipboard.writeText(node.id)}
+            title="Копировать ID" style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px' }}>
+            📋
+          </button>
+        </label>
         <input value={node.id} disabled />
       </div>
       <div className="field">
@@ -88,6 +95,19 @@ export const NodeEditorForm: React.FC<{ node: NodeData }> = ({ node }) => {
           <label>Размер</label>
           <input type="number" min={5} max={50} value={size}
             onChange={(e) => { setSize(Number(e.target.value)); markChanged(); }} />
+        </div>
+      </div>
+
+      <div className="field">
+        <label>Конспект (Obsidian URI)</label>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <input value={note} onChange={(e) => { setNote(e.target.value); markChanged(); }}
+            placeholder="obsidian://open?vault=NAME&file=Path/To/Note" style={{ flex: 1 }} />
+          {node.note && (
+            <button className="btn-sm" onClick={() => window.open(node.note, '_blank')} title="Открыть в Obsidian">
+              📝 Открыть
+            </button>
+          )}
         </div>
       </div>
 

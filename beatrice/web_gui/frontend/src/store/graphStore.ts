@@ -26,6 +26,7 @@ export class GraphStore {
   private _showOrphansOnly = false;
   private _filterUntagged = false;
   private _filterWithoutTag = '';
+  private _filterNoNote = '';  // '' = все, 'with' = только с конспектом, 'without' = только без
 
   get searchQuery(): string { return this._searchQuery; }
   set searchQuery(v: string) { this._searchQuery = v; this.notify(); }
@@ -39,6 +40,8 @@ export class GraphStore {
   set filterUntagged(v: boolean) { this._filterUntagged = v; this.notify(); }
   get filterWithoutTag(): string { return this._filterWithoutTag; }
   set filterWithoutTag(v: string) { this._filterWithoutTag = v; this.notify(); }
+  get filterNoNote(): string { return this._filterNoNote; }
+  set filterNoNote(v: string) { this._filterNoNote = v; this.notify(); }
 
   /** Установить выбранный узел с оповещением всех подписчиков. */
   selectNode(id: string | null): void {
@@ -196,6 +199,11 @@ export class GraphStore {
     if (this.showOrphansOnly) {
       const orphanSet = new Set(this.orphans);
       list = list.filter((n) => orphanSet.has(n.id));
+    }
+    if (this.filterNoNote === 'without') {
+      list = list.filter((n) => !n.note);
+    } else if (this.filterNoNote === 'with') {
+      list = list.filter((n) => n.note);
     }
     return list;
   }

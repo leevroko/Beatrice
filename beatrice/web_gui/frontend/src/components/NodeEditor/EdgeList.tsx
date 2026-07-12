@@ -61,7 +61,12 @@ export const EdgeList: React.FC<{ nodeId: string }> = ({ nodeId }) => {
             <tbody>
               {edges.outgoing.map((e, i) => (
                 <tr key={`out-${i}`}>
-                  <td style={{ color: 'var(--accent)' }}>→ {e.target}</td>
+                  <td style={{ color: 'var(--accent)' }}>→ {e.target}
+                    <button className="btn-sm" onClick={() => navigator.clipboard.writeText(e.target)}
+                      title="Копировать ID" style={{ fontSize: 10, padding: '1px 4px', marginLeft: 4 }}>
+                      📋
+                    </button>
+                  </td>
                   <td><span className="edge-relation">{e.relation || '—'}</span></td>
                   <td>
                     <span
@@ -96,7 +101,12 @@ export const EdgeList: React.FC<{ nodeId: string }> = ({ nodeId }) => {
             <tbody>
               {edges.incoming.map((e, i) => (
                 <tr key={`in-${i}`}>
-                  <td style={{ color: '#3cb44b' }}>← {e.source}</td>
+                  <td style={{ color: '#3cb44b' }}>← {e.source}
+                    <button className="btn-sm" onClick={() => navigator.clipboard.writeText(e.source)}
+                      title="Копировать ID" style={{ fontSize: 10, padding: '1px 4px', marginLeft: 4 }}>
+                      📋
+                    </button>
+                  </td>
                   <td><span className="edge-relation">{e.relation || '—'}</span></td>
                   <td>
                     <span

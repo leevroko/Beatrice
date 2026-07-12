@@ -103,7 +103,12 @@ beatrice-tui graph.json
 }
 ```
 
-Атрибуты `label`, `type`, `desc`, `color`, `size` — опциональные, используются для отображения в TUI и HTML-визуализации. Можно добавлять свои.
+Атрибуты `label`, `type`, `desc`, `color`, `size`, `note` — опциональные, используются для отображения в TUI и HTML-визуализации. Можно добавлять свои.
+
+Поле `note` предназначено для Obsidian-ссылки в формате `obsidian://open?vault=НАЗВАНИЕ&file=Путь/к/Заметке`. Используется:
+- В Web GUI: поле в редакторе, кнопка «Открыть», фильтр/подсветка узлов без конспекта
+- В CLI: атрибут `--note` у команд `add-node` и `edit-node`
+- В HTML render: ссылка «📝 Конспект» в тултипе узла
 
 ## Поиск сирот
 
@@ -139,8 +144,8 @@ beatrice graph render graph.json
 | `beatrice graph tag rm <graph> <id...> <tag...>` | Удалить теги из узла |
 | `beatrice graph tag ls <graph> [id]` | Показать теги (всех или узла) |
 | `beatrice graph tag clear <graph> <id...>` | Очистить теги узла |
-| `beatrice graph add-node <graph> <id...>` | Добавить узел с --label,--type,--desc,--color,--size |
-| `beatrice graph edit-node <graph> <id>` | Изменить атрибуты узла (patch-only) |
+| `beatrice graph add-node <graph> <id...>` | Добавить узел с --label,--type,--desc,--color,--size,--note |
+| `beatrice graph edit-node <graph> <id>` | Изменить атрибуты узла (patch-only, --note в т.ч.) |
 | `beatrice graph rm-node <graph> <id...>` | Удалить узел |
 | `beatrice graph add-edge <graph> <src...> <tgt...>` | Добавить ребро с --relation,--weight |
 | `beatrice graph rm-edge <graph> <src...> <tgt...>` | Удалить ребро |
