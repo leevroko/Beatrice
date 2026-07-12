@@ -121,6 +121,26 @@ def apply_tag_filter(G: nx.DiGraph, tags: list[str], mode: str) -> set[str]:
     return result
 
 
+def cmd_init(args):
+    """Создать новый пустой граф."""
+    G = nx.DiGraph()
+    G.graph["beatrice_counter"] = 0
+    if args.graph == "-":
+        data = nx.node_link_data(G)
+        json.dump(data, sys.stdout, ensure_ascii=False, indent=2)
+        print()
+        return
+    try:
+        p = Path(args.graph)
+        if p.exists():
+            raise BeatriceError(f"Файл уже существует: {args.graph}")
+        save_graph(G, args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+    print(f"Граф инициализирован: {args.graph}")
+
+
 def cmd_tag_add(args):
     """Добавить теги к узлу (узлам)."""
     try:
@@ -991,6 +1011,11 @@ def main():
 
     gsub = graph.add_subparsers(dest="action")
     gsub.required = True
+
+    # init
+    p_init = gsub.add_parser("init", help="Создать новый пустой граф")
+    p_init.add_argument("graph", help="Путь к JSON-файлу графа (или '-' для stdout)")
+    p_init.set_defaults(func=cmd_init)
 
     # search
     p_search = gsub.add_parser("search", help="Найти узлы по строке или regex")

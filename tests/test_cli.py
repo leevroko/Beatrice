@@ -14,7 +14,7 @@ import networkx as nx
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from beatrice.cli import (BeatriceError, load_graph, save_graph,
-    cmd_search, cmd_neighbors, cmd_orphans, cmd_roots, cmd_frontier,
+    cmd_init, cmd_search, cmd_neighbors, cmd_orphans, cmd_roots, cmd_frontier,
     cmd_islands, cmd_louvain, cmd_ring,
     cmd_intersect, cmd_union, cmd_diff, cmd_symdiff, cmd_mv, cmd_snapshot,
     cmd_add_node, cmd_rm_node,
@@ -1167,6 +1167,37 @@ class TestTagLsExtended(GraphTestCase):
         self.assertNotIn("kafka", text)
         self.assertIn("zk", text)
         self.assertIn("connect", text)
+
+
+class TestInit(GraphTestCase):
+    """Инициализация нового пустого графа."""
+
+    def test_init_new_file(self):
+        """Создание нового графа в файл."""
+        new_path = self.path + ".new.json"
+        cmd_init(FakeArgs(graph=new_path))
+        G = load_graph(new_path)
+        self.assertEqual(G.number_of_nodes(), 0)
+        self.assertEqual(G.number_of_edges(), 0)
+        self.assertEqual(G.graph.get("beatrice_counter"), 0)
+        os.unlink(new_path)
+
+    def test_init_stdout(self):
+        """Вывод JSON пустого графа в stdout через '-'."""
+        with capture_stdout() as out:
+            cmd_init(FakeArgs(graph="-"))
+        data = json.loads(out.getvalue())
+        self.assertEqual(data["directed"], True)
+        self.assertEqual(data["nodes"], [])
+        self.assertEqual(data["edges"], [])
+
+    def test_init_existing_file(self):
+        """Ошибка при попытке создать граф в существующий файл."""
+        with self.assertRaises(SystemExit):
+            cmd_init(FakeArgs(graph=self.path))
+        # граф не должен быть тронут
+        G = load_graph(self.path)
+        self.assertGreater(G.number_of_nodes(), 0)
 
 
 if __name__ == "__main__":
