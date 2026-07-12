@@ -156,21 +156,22 @@ const AddEdgeDialog: React.FC<{
   const [selectedNode, setSelectedNode] = useState<{ id: string; label: string; type: string } | null>(null);
   const [relation, setRelation] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showCreateNew, setShowCreateNew] = useState(false);
+  const [newNodeId, setNewNodeId] = useState('');
+  const [newNodeLabel, setNewNodeLabel] = useState('');
+  const [newNodeType, setNewNodeType] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const otherNodes = Array.from(graph.nodes.values())
     .filter((n) => n.id !== nodeId);
 
-  // Fuzzy filter: разбиваем query на символы, проверяем вхождение по порядку в id и label
   const filteredNodes = query.trim() === ''
     ? otherNodes.slice(0, 10)
     : otherNodes.filter((n) => {
         const q = query.toLowerCase();
         const id = n.id.toLowerCase();
         const label = n.label.toLowerCase();
-        // Сначала точное вхождение подстроки
         if (id.includes(q) || label.includes(q)) return true;
-        // Fuzzy: все символы query встречаются в id или label по порядку
         const fuzzyMatch = (s: string): boolean => {
           let qi = 0;
           for (let si = 0; si < s.length && qi < q.length; si++) {
@@ -179,7 +180,25 @@ const AddEdgeDialog: React.FC<{
           return qi === q.length;
         };
         return fuzzyMatch(id) || fuzzyMatch(label);
-      }).slice(0, 20); // не больше 20 результатов
+      }).slice(0, 20);
+
+  const handleCreateAndLink = async () => {
+    if (!newNodeId.trim()) return;
+    try {
+      await graph.addNode(newNodeId.trim(), {
+        label: newNodeLabel.trim() || newNodeId.trim(),
+        type: newNodeType.trim(),
+      });
+      if (direction === 'outgoing') {
+        await graph.addEdge(nodeId, newNodeId.trim(), relation);
+      } else {
+        await graph.addEdge(newNodeId.trim(), nodeId, relation);
+      }
+      onDone();
+    } catch (e) {
+      alert(`Ошибка: ${e}`);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!selectedNode) return;
@@ -205,6 +224,7 @@ const AddEdgeDialog: React.FC<{
     <div className="dialog-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog">
         <h3>Добавить связь</h3>
+
         <div className="field">
           <label>Направление</label>
           <select value={direction} onChange={(e) => setDirection(e.target.value as 'outgoing' | 'incoming')}>
@@ -212,80 +232,107 @@ const AddEdgeDialog: React.FC<{
             <option value="incoming">Входящая (... → {nodeId})</option>
           </select>
         </div>
+
         <div className="field" style={{ position: 'relative' }}>
-          <label>{direction === 'outgoing' ? 'Цель' : 'Источник'}</label>
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setSelectedNode(null);
-              setShowDropdown(true);
-            }}
-            onFocus={() => setShowDropdown(true)}
-            onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && filteredNodes.length > 0) {
-                handleSelect(filteredNodes[0]);
-              }
-              if (e.key === 'Escape') setShowDropdown(false);
-            }}
-            placeholder="Введите id или название узла..."
-            autoFocus
-          />
-          {showDropdown && filteredNodes.length > 0 && (
-            <div style={{
-              position: 'absolute', top: '100%', left: 0, right: 0,
-              background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-              borderRadius: '0 0 6px 6px', maxHeight: 240, overflowY: 'auto',
-              zIndex: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            }}>
-              {filteredNodes.map((n) => (
-                <div
-                  key={n.id}
-                  onMouseDown={() => handleSelect(n)}
-                  style={{
-                    padding: '8px 12px', cursor: 'pointer',
-                    borderBottom: '1px solid var(--border)',
-                    fontSize: 13, display: 'flex', justifyContent: 'space-between',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
-                >
-                  <span>
-                    <span style={{
-                      display: 'inline-block', width: 8, height: 8,
-                      borderRadius: '50%', background: n.color || '#999',
-                      marginRight: 8, verticalAlign: 'middle',
-                    }} />
-                    <span style={{ fontWeight: 500 }}>{n.label}</span>
-                    <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: 11 }}>{n.id}</span>
-                  </span>
-                  {n.type && (
-                    <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{n.type}</span>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+            <label style={{ flex: 1 }}>{direction === 'outgoing' ? 'Цель' : 'Источник'}</label>
+            <button className="btn-sm" onClick={() => { setShowCreateNew(!showCreateNew); setSelectedNode(null); setQuery(''); }}
+              title={showCreateNew ? 'Поиск существующего' : 'Создать новый'}>
+              {showCreateNew ? '🔍 Поиск' : '➕ Новый'}
+            </button>
+          </div>
+
+          {showCreateNew ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <input value={newNodeId} onChange={(e) => setNewNodeId(e.target.value)}
+                placeholder="ID нового узла" autoFocus />
+              <input value={newNodeLabel} onChange={(e) => setNewNodeLabel(e.target.value)}
+                placeholder="Метка (необязательно)" />
+              <input value={newNodeType} onChange={(e) => setNewNodeType(e.target.value)}
+                placeholder="Тип (необязательно)" />
+              <button className="btn-primary btn-sm" onClick={handleCreateAndLink}
+                disabled={!newNodeId.trim()}>
+                Создать и связать
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setSelectedNode(null);
+                  setShowDropdown(true);
+                }}
+                onFocus={() => setShowDropdown(true)}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && filteredNodes.length > 0) {
+                    handleSelect(filteredNodes[0]);
+                  }
+                  if (e.key === 'Escape') setShowDropdown(false);
+                }}
+                placeholder="Введите id или название узла..."
+                autoFocus
+              />
+              {showDropdown && filteredNodes.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0,
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                  borderRadius: '0 0 6px 6px', maxHeight: 240, overflowY: 'auto',
+                  zIndex: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                }}>
+                  {filteredNodes.map((n) => (
+                    <div
+                      key={n.id}
+                      onMouseDown={() => handleSelect(n)}
+                      style={{
+                        padding: '8px 12px', cursor: 'pointer',
+                        borderBottom: '1px solid var(--border)',
+                        fontSize: 13, display: 'flex', justifyContent: 'space-between',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
+                    >
+                      <span>
+                        <span style={{
+                          display: 'inline-block', width: 8, height: 8,
+                          borderRadius: '50%', background: n.color || '#999',
+                          marginRight: 8, verticalAlign: 'middle',
+                        }} />
+                        <span style={{ fontWeight: 500 }}>{n.label}</span>
+                        <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: 11 }}>{n.id}</span>
+                      </span>
+                      {n.type && (
+                        <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{n.type}</span>
+                      )}
+                    </div>
+                  ))}
+                  {filteredNodes.length === 20 && query.trim() !== '' && (
+                    <div style={{ padding: '6px 12px', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
+                      … и ещё
+                    </div>
                   )}
                 </div>
-              ))}
-              {filteredNodes.length === 20 && query.trim() !== '' && (
-                <div style={{ padding: '6px 12px', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
-                  … и ещё
+              )}
+              {selectedNode && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                  Выбран: <strong>{selectedNode.label}</strong> ({selectedNode.id})
+                  {selectedNode.type ? ` — ${selectedNode.type}` : ''}
                 </div>
               )}
-            </div>
-          )}
-          {selectedNode && (
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              Выбран: <strong>{selectedNode.label}</strong> ({selectedNode.id})
-              {selectedNode.type ? ` — ${selectedNode.type}` : ''}
-            </div>
+            </>
           )}
         </div>
+
         <div className="field">
           <label>Тип связи (необязательно)</label>
           <input value={relation} onChange={(e) => setRelation(e.target.value)}
             placeholder="использует, зависит от, ..." />
         </div>
+
         <div className="dialog-actions">
           <button onClick={onClose}>Отмена</button>
           <button className="btn-primary" onClick={handleSubmit} disabled={!selectedNode}>
