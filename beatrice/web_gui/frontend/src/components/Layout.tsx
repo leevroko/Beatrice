@@ -45,7 +45,7 @@ export const Layout: React.FC = () => {
         <button onClick={handleSave} disabled={!graph.dirty}>
           💾 Save
         </button>
-        <button onClick={() => graph.refresh()}>⟳ Reload</button>
+        <button onClick={() => graph.reload()} disabled={!graph.filePath}>⟳ Reload</button>
         <button onClick={() => setShowAddDialog(true)}>+ Узел</button>
       </div>
 

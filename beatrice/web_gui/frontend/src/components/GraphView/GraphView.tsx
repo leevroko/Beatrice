@@ -75,7 +75,7 @@ export const GraphView: React.FC = () => {
   // ────── React-состояние для UI-контролов ──────
   const [showDir, setShowDir] = useState(true);
   const [showLouvain, setShowLouvain] = useState(false);
-  const [focusCommunity, setFocusCommunity] = useState<number | null>(null);
+  const [hiddenCommunities, setHiddenCommunities] = useState<Set<number>>(new Set());
   const [tagHighlight, setTagHighlight] = useState('');
   const [tagColor, setTagColor] = useState('#e94560');
   const [showOrphans, setShowOrphans] = useState(true);
@@ -220,16 +220,19 @@ export const GraphView: React.FC = () => {
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide<SimNode>().radius((d) => d.size + 15));
 
+    // Tick handler — читает из d3Ref, а не из замыкания
     sim.on('tick', () => {
-      link
+      const s = d3Ref.current;
+      if (!s) return;
+      s.link
         .attr('x1', (d) => (d.source as SimNode).x ?? 0)
         .attr('y1', (d) => (d.source as SimNode).y ?? 0)
         .attr('x2', (d) => (d.target as SimNode).x ?? 0)
         .attr('y2', (d) => (d.target as SimNode).y ?? 0);
-      edgeLabel
+      s.edgeLabel
         .attr('x', (d) => (((d.source as SimNode).x ?? 0) + ((d.target as SimNode).x ?? 0)) / 2)
         .attr('y', (d) => (((d.source as SimNode).y ?? 0) + ((d.target as SimNode).y ?? 0)) / 2 - 6);
-      nodeSel.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
+      s.nodeSel.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
     });
 
     d3Ref.current = {
@@ -352,10 +355,29 @@ export const GraphView: React.FC = () => {
     d3s.nodeSel = nodeEnter.merge(newNode) as typeof d3s.nodeSel;
 
     // Обновляем simulation
+    // Сохраняем позиции существующих узлов ДО замены данных в симуляции
+    const oldNodes = new Map<string, SimNode>();
+    const currentSimNodes = sim.nodes() as SimNode[];
+    currentSimNodes.forEach((n) => oldNodes.set(n.id, n));
+
     sim.nodes(nodes);
     const linkForce = sim.force('link') as d3.ForceLink<SimNode, SimLink>;
     linkForce.links(links);
-    sim.alpha(0.3).restart();
+
+    for (const n of nodes) {
+      const old = oldNodes.get(n.id);
+      if (old) {
+        n.x = old.x;
+        n.y = old.y;
+        n.vx = old.vx ?? 0;
+        n.vy = old.vy ?? 0;
+      } else {
+        // Новый узел — ставим рядом с центром
+        n.x = width / 2 + (Math.random() - 0.5) * 100;
+        n.y = height / 2 + (Math.random() - 0.5) * 100;
+      }
+    }
+    sim.alpha(0.5).restart();
 
     applyVisualState(d3s);
     updateLegend();
@@ -368,7 +390,7 @@ export const GraphView: React.FC = () => {
     if (!d3Ref.current) return;
     applyVisualState(d3Ref.current);
     updateLegend();
-  }, [showDir, showLouvain, focusCommunity, tagHighlight, tagColor,
+  }, [showDir, showLouvain, hiddenCommunities, tagHighlight, tagColor,
       showOrphans, graph.selectedNodeId]);
 
   // ────── Вспомогательные функции ──────
@@ -402,8 +424,12 @@ export const GraphView: React.FC = () => {
       // Fill
       circle.attr('fill', getFillColor(d));
 
-      // Видимость сирот
+    // Видимость сирот + скрытые сообщества
       if (!showOrphans && d.isOrphan) {
+        g.style('display', 'none');
+        return;
+      }
+      if (showLouvain && hiddenCommunities.has(d.community)) {
         g.style('display', 'none');
         return;
       }
@@ -481,18 +507,50 @@ export const GraphView: React.FC = () => {
         <button onClick={() => { setShowDir(!showDir); }}>
           {showDir ? '↔ Направления' : '↔ Без напр.'}
         </button>
-        <button onClick={() => { setShowLouvain(!showLouvain); setFocusCommunity(null); }}>
+        <button onClick={() => { setShowLouvain(!showLouvain); setHiddenCommunities(new Set()); }}>
           🧬 {showLouvain ? 'Типы' : 'Сообщества'}
         </button>
         {showLouvain && (
-          <select value={focusCommunity?.toString() ?? ''} onChange={(e) => {
-            setFocusCommunity(e.target.value ? parseInt(e.target.value) : null);
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center',
+            width: '100%', padding: '4px 0', borderTop: '1px solid var(--border)',
           }}>
-            <option value="">— Все —</option>
-            {usedComms.map((i) => (
-              <option key={i} value={i}>Сообщество #{i + 1}</option>
-            ))}
-          </select>
+            <span style={{ fontSize: 11, color: '#888', marginRight: 4 }}>Сообщества:</span>
+            <button className="btn-sm" onClick={() => setHiddenCommunities(new Set())}>
+              Все
+            </button>
+            <button className="btn-sm" onClick={() => setHiddenCommunities(new Set(usedComms))}>
+              Ничего
+            </button>
+            {usedComms.map((i) => {
+              const hidden = hiddenCommunities.has(i);
+              return (
+                <label key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: 2,
+                  fontSize: 11, cursor: 'pointer', color: hidden ? '#666' : '#eee',
+                  background: hidden ? 'transparent' : LOUVAIN_PALETTE[i % LOUVAIN_PALETTE.length] + '33',
+                  padding: '1px 6px', borderRadius: 4,
+                }}>
+                  <span style={{
+                    display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                    background: LOUVAIN_PALETTE[i % LOUVAIN_PALETTE.length],
+                    opacity: hidden ? 0.3 : 1,
+                  }} />
+                  <input
+                    type="checkbox"
+                    checked={!hidden}
+                    onChange={() => {
+                      const next = new Set(hiddenCommunities);
+                      if (hidden) next.delete(i); else next.add(i);
+                      setHiddenCommunities(next);
+                    }}
+                    style={{ width: 12, height: 12, accentColor: LOUVAIN_PALETTE[i % LOUVAIN_PALETTE.length] }}
+                  />
+                  #{i + 1}
+                </label>
+              );
+            })}
+          </div>
         )}
         <select value={tagHighlight} onChange={(e) => setTagHighlight(e.target.value)}>
           <option value="">— Тег —</option>

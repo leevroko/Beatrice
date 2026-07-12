@@ -46,8 +46,30 @@ export class GraphStore {
     this.notify();
   }
 
+  /** Пересчитать сирот на основе текущих узлов и рёбер. */
+  private recalcOrphans(): void {
+    const degree = new Map<string, number>();
+    for (const n of this.nodes.keys()) degree.set(n, 0);
+    for (const e of this.edges) {
+      degree.set(e.source, (degree.get(e.source) ?? 0) + 1);
+      degree.set(e.target, (degree.get(e.target) ?? 0) + 1);
+    }
+    this.orphans = Array.from(degree.entries())
+      .filter(([, d]) => d === 0)
+      .map(([id]) => id);
+  }
+
   // Callbacks for React re-render
   private listeners = new Set<() => void>();
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notify(): void {
+    this.listeners.forEach((l) => l());
+  }
 
   constructor(public ws: WsClient) {
     // Subscribe to WS events
@@ -55,6 +77,7 @@ export class GraphStore {
       const n = ev.payload as unknown as NodeData;
       this.nodes.set(n.id, n);
       this.dirty = true;
+      this.recalcOrphans();
       this.notify();
     });
     this.ws.on('node_removed', (ev) => {
@@ -62,6 +85,7 @@ export class GraphStore {
       this.nodes.delete(id);
       if (this.selectedNodeId === id) this.selectNode(null);
       this.dirty = true;
+      this.recalcOrphans();
       this.notify();
     });
     this.ws.on('node_updated', (ev) => {
@@ -86,6 +110,7 @@ export class GraphStore {
       const e = ev.payload as unknown as EdgeData;
       this.edges.push(e);
       this.dirty = true;
+      this.recalcOrphans();
       this.notify();
     });
     this.ws.on('edge_removed', (ev) => {
@@ -94,6 +119,7 @@ export class GraphStore {
         (e) => !(e.source === source && e.target === target)
       );
       this.dirty = true;
+      this.recalcOrphans();
       this.notify();
     });
     this.ws.on('edge_updated', (ev) => {
@@ -117,15 +143,6 @@ export class GraphStore {
       this.dirty = false;
       this.notify();
     });
-  }
-
-  subscribe(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  private notify(): void {
-    this.listeners.forEach((l) => l());
   }
 
   async init(path: string): Promise<void> {
@@ -235,5 +252,9 @@ export class GraphStore {
 
   async save(): Promise<void> {
     await this.ws.call('save');
+  }
+
+  async reload(): Promise<void> {
+    await this.ws.call('reload');
   }
 }
