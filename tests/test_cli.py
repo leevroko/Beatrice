@@ -19,7 +19,8 @@ from beatrice.cli import (BeatriceError, load_graph, save_graph,
     cmd_intersect, cmd_union, cmd_diff, cmd_symdiff, cmd_mv, cmd_snapshot,
     cmd_add_node, cmd_rm_node,
     cmd_add_edge, cmd_rm_edge, cmd_edit_node, cmd_render,
-    cmd_tag_add, cmd_tag_rm, cmd_tag_ls, cmd_tag_clear, apply_tag_filter)
+    cmd_tag_add, cmd_tag_rm, cmd_tag_ls, cmd_tag_clear, apply_tag_filter,
+    cmd_note_add, cmd_note_rm, cmd_note_ls, apply_note_filter)
 
 
 @contextmanager
@@ -62,6 +63,8 @@ class FakeArgs:
         self.untagged = False
         self.list = False
         self.without = []
+        self.note = None
+        self.with_ = False
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -1198,6 +1201,102 @@ class TestInit(GraphTestCase):
         # граф не должен быть тронут
         G = load_graph(self.path)
         self.assertGreater(G.number_of_nodes(), 0)
+
+
+# ─────────────────────────────────────────────────────────
+# note — apply_note_filter, cmd_note
+# ─────────────────────────────────────────────────────────
+
+class TestNoteFilter(unittest.TestCase):
+    """Юнит-тесты для apply_note_filter."""
+
+    def setUp(self):
+        self.G = nx.DiGraph()
+        self.G.add_node("a", note="obsidian://...")
+        self.G.add_node("b", note="")
+        self.G.add_node("c")  # нет атрибута note вовсе
+        self.G.add_node("d", note="obsidian://other")
+
+    def test_none_filter(self):
+        """Пустой mode возвращает все узлы."""
+        result = apply_note_filter(self.G, "")
+        self.assertEqual(result, {"a", "b", "c", "d"})
+
+    def test_with_filter(self):
+        """mode='with' — только узлы с note."""
+        result = apply_note_filter(self.G, "with")
+        self.assertEqual(result, {"a", "d"})
+
+    def test_without_filter(self):
+        """mode='without' — только узлы без note."""
+        result = apply_note_filter(self.G, "without")
+        self.assertEqual(result, {"b", "c"})
+
+
+class TestNoteCRUD(GraphTestCase):
+    """Команды note add, rm, ls."""
+
+    def test_note_add(self):
+        """Добавить note узлу."""
+        cmd_note_add(FakeArgs(graph=self.path, ids=["kafka"],
+                              uri="obsidian://open?vault=dev&file=Kafka"))
+        G = load_graph(self.path)
+        self.assertEqual(G.nodes["kafka"].get("note", ""),
+                         "obsidian://open?vault=dev&file=Kafka")
+
+    def test_note_rm(self):
+        """Очистить note у узла."""
+        # Сначала зададим
+        cmd_note_add(FakeArgs(graph=self.path, ids=["kafka"],
+                              uri="obsidian://..."))
+        # Потом удалим
+        cmd_note_rm(FakeArgs(graph=self.path, ids=["kafka"]))
+        G = load_graph(self.path)
+        self.assertEqual(G.nodes["kafka"].get("note", ""), "")
+
+    def test_note_ls_all(self):
+        """note ls — статистика по всем."""
+        cmd_note_add(FakeArgs(graph=self.path, ids=["kafka"],
+                              uri="obsidian://kafka"))
+        with capture_stdout() as out:
+            cmd_note_ls(FakeArgs(graph=self.path, id=None,
+                                 with_=False, without=False))
+        text = out.getvalue()
+        self.assertIn("Конспекты: 1/5", text)
+
+    def test_note_ls_single(self):
+        """note ls <id> — показать note узла."""
+        cmd_note_add(FakeArgs(graph=self.path, ids=["kafka"],
+                              uri="obsidian://kafka"))
+        with capture_stdout() as out:
+            cmd_note_ls(FakeArgs(graph=self.path, id="kafka",
+                                 with_=False, without=False))
+        self.assertIn("obsidian://kafka", out.getvalue())
+
+    def test_note_ls_with(self):
+        """note ls --with — список узлов с note."""
+        cmd_note_add(FakeArgs(graph=self.path, ids=["kafka"],
+                              uri="obsidian://kafka"))
+        cmd_note_add(FakeArgs(graph=self.path, ids=["sr"],
+                              uri="obsidian://sr"))
+        with capture_stdout() as out:
+            cmd_note_ls(FakeArgs(graph=self.path, id=None,
+                                 with_=True, without=False))
+        text = out.getvalue()
+        self.assertIn("kafka", text)
+        self.assertIn("sr", text)
+        self.assertNotIn("zk", text)
+
+    def test_note_ls_without(self):
+        """note ls --without — список узлов без note."""
+        cmd_note_add(FakeArgs(graph=self.path, ids=["kafka"],
+                              uri="obsidian://kafka"))
+        with capture_stdout() as out:
+            cmd_note_ls(FakeArgs(graph=self.path, id=None,
+                                 with_=False, without=True))
+        text = out.getvalue()
+        self.assertIn("zk", text)
+        self.assertNotIn("kafka", text)
 
 
 if __name__ == "__main__":

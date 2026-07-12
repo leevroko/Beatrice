@@ -121,6 +121,20 @@ def apply_tag_filter(G: nx.DiGraph, tags: list[str], mode: str) -> set[str]:
     return result
 
 
+def apply_note_filter(G: nx.DiGraph, mode: str) -> set[str]:
+    """Вернуть множество id узлов, проходящих фильтр по note.
+
+    Если mode пуст — возвращает все узлы.
+    mode='with' — только узлы с note.
+    mode='without' — только узлы без note.
+    """
+    if not mode:
+        return set(G.nodes())
+    if mode == "with":
+        return {n for n in G.nodes() if G.nodes[n].get("note", "")}
+    return {n for n in G.nodes() if not G.nodes[n].get("note", "")}
+
+
 def cmd_init(args):
     """Создать новый пустой граф."""
     G = nx.DiGraph()
@@ -338,6 +352,92 @@ def cmd_tag_clear(args):
         sys.exit(1)
 
 
+def cmd_note_add(args):
+    """Задать note (Obsidian-ссылку) узлу."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+    for nid in args.ids:
+        if nid not in G:
+            print(f"Предупреждение: узел «{nid}» не найден — пропускаю")
+            continue
+        G.nodes[nid]["note"] = args.uri
+        print(f"  {nid}: note задан")
+    try:
+        save_or_output(G, args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка при сохранении: {e}")
+        sys.exit(1)
+
+
+def cmd_note_rm(args):
+    """Очистить note у узла."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+    for nid in args.ids:
+        if nid not in G:
+            print(f"Предупреждение: узел «{nid}» не найден — пропускаю")
+            continue
+        G.nodes[nid]["note"] = ""
+        print(f"  {nid}: note очищен")
+    try:
+        save_or_output(G, args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка при сохранении: {e}")
+        sys.exit(1)
+
+
+def cmd_note_ls(args):
+    """Показать информацию о note (статистику или конкретного узла)."""
+    try:
+        G = load_graph(args.graph)
+    except BeatriceError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
+
+    if args.id:
+        nid = args.id
+        if nid not in G:
+            print(f"Ошибка: узел «{nid}» не найден")
+            sys.exit(1)
+        note = G.nodes[nid].get("note", "")
+        if note:
+            print(f"📝 {nid}: {note}")
+        else:
+            print(f"У узла «{nid}» нет конспекта")
+        return
+
+    notes = {n for n in G.nodes() if G.nodes[n].get("note", "")}
+    no_notes = {n for n in G.nodes() if not G.nodes[n].get("note", "")}
+
+    if args.with_:
+        for n in sorted(notes):
+            label = G.nodes[n].get("label", n)
+            type_str = G.nodes[n].get("type", "")
+            print(f"  {n:<25s} «{label}»" + (f"  {type_str}" if type_str else ""))
+        return
+
+    if args.without:
+        for n in sorted(no_notes):
+            label = G.nodes[n].get("label", n)
+            type_str = G.nodes[n].get("type", "")
+            print(f"  {n:<25s} «{label}»" + (f"  {type_str}" if type_str else ""))
+        return
+
+    total = G.number_of_nodes()
+    n_with = len(notes)
+    n_without = len(no_notes)
+    pct = round(n_with / total * 100) if total else 0
+    print(f"📝 Конспекты: {n_with}/{total} узлов ({pct}%)")
+    print(f"  С конспектом:  {n_with}")
+    print(f"  Без конспекта: {n_without}")
+
+
 def cmd_search(args):
     """Найти узлы, чей id или label содержит строку или соответствует regex."""
     try:
@@ -347,6 +447,8 @@ def cmd_search(args):
         sys.exit(1)
 
     tag_filter = apply_tag_filter(G, args.tag, args.tag_mode)
+    note_filter = apply_note_filter(G, getattr(args, 'note', ''))
+    combined = tag_filter & note_filter
 
     try:
         if args.regex:
@@ -359,7 +461,7 @@ def cmd_search(args):
 
     if matcher:
         matches = [
-            n for n in G.nodes() if n in tag_filter
+            n for n in G.nodes() if n in combined
             if matcher.search(n) or (
                 G.nodes[n].get("label")
                 and matcher.search(str(G.nodes[n]["label"]))
@@ -368,7 +470,7 @@ def cmd_search(args):
     else:
         plow = args.pattern.lower()
         matches = [
-            n for n in G.nodes() if n in tag_filter
+            n for n in G.nodes() if n in combined
             if plow in n.lower()
             or plow in G.nodes[n].get("label", "").lower()
         ]
@@ -396,13 +498,15 @@ def cmd_neighbors(args):
         sys.exit(1)
 
     tag_filter = apply_tag_filter(G, args.tag, args.tag_mode)
+    note_filter = apply_note_filter(G, getattr(args, 'note', ''))
+    combined = tag_filter & note_filter
     direction = args.direction
 
     if direction in ("out", "all"):
         if args.output_format != "json":
             print(f"\n→ Исходящие (на кого указывает «{args.node}»):")
         for _, tgt, data in G.out_edges(args.node, data=True):
-            if tgt not in tag_filter:
+            if tgt not in combined:
                 continue
             if args.output_format != "json":
                 label = G.nodes[tgt].get("label", tgt)
@@ -413,7 +517,7 @@ def cmd_neighbors(args):
         if args.output_format != "json":
             print(f"\n← Входящие (кто указывает на «{args.node}»):")
         for src, _, data in G.in_edges(args.node, data=True):
-            if src not in tag_filter:
+            if src not in combined:
                 continue
             if args.output_format != "json":
                 label = G.nodes[src].get("label", src)
@@ -425,7 +529,6 @@ def cmd_neighbors(args):
         if args.output_format != "json":
             print(f"\nВсего связей: {total}")
     if args.output_format == "json":
-        # Найденные узлы: сам node + соседи
         nbrs = {args.node}
         for _, tgt, _ in G.out_edges(args.node, data=True):
             nbrs.add(tgt)
@@ -442,7 +545,8 @@ def cmd_orphans(args):
         print(f"Ошибка: {e}")
         sys.exit(1)
 
-    orphans = [n for n, d in G.degree() if d == 0]
+    note_filter = apply_note_filter(G, getattr(args, 'note', ''))
+    orphans = [n for n, d in G.degree() if d == 0 and n in note_filter]
 
     if args.output_format == "json":
         output_graph(G, set(orphans), "json")
@@ -469,7 +573,8 @@ def cmd_roots(args):
         print(f"Ошибка: {e}")
         sys.exit(1)
 
-    roots = [n for n in G.nodes() if G.out_degree(n) > 0 and G.in_degree(n) == 0]
+    note_filter = apply_note_filter(G, getattr(args, 'note', ''))
+    roots = [n for n in G.nodes() if G.out_degree(n) > 0 and G.in_degree(n) == 0 and n in note_filter]
 
     roots = [n for n in G.nodes() if G.out_degree(n) > 0 and G.in_degree(n) == 0]
 
@@ -496,7 +601,8 @@ def cmd_frontier(args):
         print(f"Ошибка: {e}")
         sys.exit(1)
 
-    frontier = [n for n in G.nodes() if G.in_degree(n) > 0 and G.out_degree(n) == 0]
+    note_filter = apply_note_filter(G, getattr(args, 'note', ''))
+    frontier = [n for n in G.nodes() if G.in_degree(n) > 0 and G.out_degree(n) == 0 and n in note_filter]
 
     if args.output_format == "json":
         output_graph(G, set(frontier), "json")
@@ -674,7 +780,9 @@ def cmd_islands(args):
     from networkx.algorithms.components import weakly_connected_components
 
     tag_filter = apply_tag_filter(G, args.tag, args.tag_mode)
-    subgraph = G.subgraph(tag_filter)
+    note_filter = apply_note_filter(G, getattr(args, 'note', ''))
+    combined = tag_filter & note_filter
+    subgraph = G.subgraph(combined)
 
     orphans_set = set(n for n, d in subgraph.degree() if d == 0)
     components = sorted(
@@ -762,6 +870,8 @@ def cmd_ring(args):
     from collections import deque
 
     tag_filter = apply_tag_filter(G, args.tag, args.tag_mode)
+    note_filter = apply_note_filter(G, getattr(args, 'note', ''))
+    combined = tag_filter & note_filter
 
     # BFS от source node, собираем {node: depth}
     depths: dict[str, int] = {}
@@ -1034,6 +1144,8 @@ def main():
                           help="Формат вывода")
     p_search.add_argument("--json", action="store_const", dest="output_format", const="json",
                           help="Сокращение для --output-format json")
+    p_search.add_argument("--note", choices=["with", "without"], default="",
+                          help="Фильтр по наличию конспекта: with/without")
     p_search.set_defaults(func=cmd_search)
 
     # neighbors
@@ -1052,6 +1164,8 @@ def main():
                        help="Формат вывода")
     p_nei.add_argument("--json", action="store_const", dest="output_format", const="json",
                        help="Сокращение для --output-format json")
+    p_nei.add_argument("--note", choices=["with", "without"], default="",
+                       help="Фильтр по наличию конспекта: with/without")
     p_nei.set_defaults(func=cmd_neighbors)
 
     # orphans
@@ -1063,6 +1177,8 @@ def main():
                         help="Формат вывода")
     p_orph.add_argument("--json", action="store_const", dest="output_format", const="json",
                         help="Сокращение для --output-format json")
+    p_orph.add_argument("--note", choices=["with", "without"], default="",
+                        help="Фильтр по наличию конспекта: with/without")
     p_orph.set_defaults(func=cmd_orphans)
 
     # roots
@@ -1073,6 +1189,8 @@ def main():
                          help="Формат вывода")
     p_roots.add_argument("--json", action="store_const", dest="output_format", const="json",
                          help="Сокращение для --output-format json")
+    p_roots.add_argument("--note", choices=["with", "without"], default="",
+                         help="Фильтр по наличию конспекта: with/without")
     p_roots.set_defaults(func=cmd_roots)
 
     # frontier
@@ -1083,6 +1201,8 @@ def main():
                             help="Формат вывода")
     p_frontier.add_argument("--json", action="store_const", dest="output_format", const="json",
                             help="Сокращение для --output-format json")
+    p_frontier.add_argument("--note", choices=["with", "without"], default="",
+                            help="Фильтр по наличию конспекта: with/without")
     p_frontier.set_defaults(func=cmd_frontier)
 
     # islands
@@ -1097,6 +1217,8 @@ def main():
                            help="Формат вывода")
     p_islands.add_argument("--json", action="store_const", dest="output_format", const="json",
                            help="Сокращение для --output-format json")
+    p_islands.add_argument("--note", choices=["with", "without"], default="",
+                           help="Фильтр по наличию конспекта: with/without")
     p_islands.set_defaults(func=cmd_islands)
 
     # louvain
@@ -1128,6 +1250,8 @@ def main():
                         help="Формат вывода")
     p_ring.add_argument("--json", action="store_const", dest="output_format", const="json",
                         help="Сокращение для --output-format json")
+    p_ring.add_argument("--note", choices=["with", "without"], default="",
+                        help="Фильтр по наличию конспекта: with/without")
     p_ring.set_defaults(func=cmd_ring)
 
     # set operations
@@ -1146,6 +1270,32 @@ def main():
             "diff": cmd_diff,
             "symdiff": cmd_symdiff,
         }[op])
+
+    # note
+    p_note = gsub.add_parser("note",
+                            help="Управление Obsidian-конспектами узлов")
+    nsub = p_note.add_subparsers(dest="note_action")
+    nsub.required = True
+
+    p_note_add = nsub.add_parser("add", help="Задать note узлу")
+    p_note_add.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_note_add.add_argument("ids", nargs="+", help="ID узла (узлов)")
+    p_note_add.add_argument("uri", help="Obsidian URI")
+    p_note_add.set_defaults(func=cmd_note_add)
+
+    p_note_rm = nsub.add_parser("rm", help="Очистить note узла")
+    p_note_rm.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_note_rm.add_argument("ids", nargs="+", help="ID узла (узлов)")
+    p_note_rm.set_defaults(func=cmd_note_rm)
+
+    p_note_ls = nsub.add_parser("ls", help="Показать информацию о note")
+    p_note_ls.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_note_ls.add_argument("id", nargs="?", default=None, help="ID узла (опционально)")
+    p_note_ls.add_argument("--with", dest="with_", action="store_true",
+                           help="Список узлов с note")
+    p_note_ls.add_argument("--without", action="store_true",
+                           help="Список узлов без note")
+    p_note_ls.set_defaults(func=cmd_note_ls)
 
     # add-node
     p_addn = gsub.add_parser("add-node", aliases=["an"],
@@ -1305,6 +1455,11 @@ def cmd_stat(args):
     print(f"Сирот:  {len(orphans)}")
     if orphans:
         print(f"         {', '.join(orphans)}")
+    notes = [n for n in G.nodes() if G.nodes[n].get("note", "")]
+    n_with = len(notes)
+    total = G.number_of_nodes()
+    pct = round(n_with / total * 100) if total else 0
+    print(f"Конспекты:  {n_with}/{total} ({pct}%)")
 
     from networkx.algorithms.community import louvain_communities
     try:

@@ -19,8 +19,9 @@
 | 🧬 **Сообщества** (Louvain-кластеризация) | `beatrice graph louvain graph.json` |
 | 🔵 **Кольца** (узлы на диапазоне глубин) | `beatrice graph ring graph.json node --min 2 --max 4` |
 | 🏷️ **Теги** (управление тегами узлов) | `beatrice graph tag add/rm/ls/clear graph.json ...` |
-| ➕ **Добавить узел** с атрибутами | `beatrice graph add-node graph.json id --label ...` |
-| ✏️ **Редактировать узел** (patch атрибутов) | `beatrice graph edit-node graph.json id --label ...` |
+| ➕ **Добавить узел** с атрибутами | `beatrice graph add-node graph.json id --label ... --note "obsidian://..."` |
+| ✏️ **Редактировать узел** (patch атрибутов) | `beatrice graph edit-node graph.json id --label ... --note "obsidian://..."` |
+| 📝 **Управление конспектами** | `beatrice graph note add/rm/ls graph.json id [uri]` |
 | ❌ **Удалить узел** (со всеми связями) | `beatrice graph rm-node graph.json id` |
 | 🔗 **Добавить ребро** | `beatrice graph add-edge graph.json src tgt --relation ...` |
 | ✂️ **Удалить ребро** | `beatrice graph rm-edge graph.json src tgt` |

@@ -131,15 +131,18 @@ beatrice graph render graph.json
 
 | Команда | Назначение |
 |---------|-----------|
-| `beatrice stat <graph>` | Статистика (узлы, рёбра, плотность, сироты, PageRank, Louvain, острова) |
-| `beatrice graph search <graph> <query>` | Поиск узлов по строке или regex |
-| `beatrice graph neighbors <graph> <node>` | Соседи узла (--direction out\|in\|all) |
-| `beatrice graph orphans <graph>` | Список сирот |
-| `beatrice graph roots <graph>` | Корневые узлы (out>0, in=0) |
-| `beatrice graph frontier <graph>` | Пограничные узлы (in>0, out=0) |
-| `beatrice graph islands <graph>` | Изолированные кластеры (компоненты связности) |
-| `beatrice graph louvain <graph>` | Louvain-сообщества (кластеризация по плотности) |
-| `beatrice graph ring <graph> <node> --min N --max M` | Узлы на диапазоне глубин (BFS + XOR слоёв) |
+| `beatrice stat <graph>` | Статистика (узлы, рёбра, плотность, сироты, PageRank, Louvain, острова, конспекты) |
+| `beatrice graph search <graph> <query>` | Поиск узлов по строке или regex (--note with/without) |
+| `beatrice graph neighbors <graph> <node>` | Соседи узла (--direction out\|in\|all, --note with/without) |
+| `beatrice graph orphans <graph>` | Список сирот (--note with/without) |
+| `beatrice graph roots <graph>` | Корневые узлы (out>0, in=0) (--note with/without) |
+| `beatrice graph frontier <graph>` | Пограничные узлы (in>0, out=0) (--note with/without) |
+| `beatrice graph islands <graph>` | Изолированные кластеры (--note with/without) |
+| `beatrice graph louvain <graph>` | Louvain-сообщества |
+| `beatrice graph ring <graph> <node> --min N --max M` | Узлы на диапазоне глубин (--note with/without) |
+| `beatrice graph note add <graph> <id...> <uri>` | Задать Obsidian-ссылку узлу |
+| `beatrice graph note rm <graph> <id...>` | Очистить Obsidian-ссылку узла |
+| `beatrice graph note ls <graph> [id]` | Статистика конспектов или --with/--without |
 | `beatrice graph tag add <graph> <id...> <tag...>` | Добавить теги к узлу |
 | `beatrice graph tag rm <graph> <id...> <tag...>` | Удалить теги из узла |
 | `beatrice graph tag ls <graph> [id]` | Показать теги (всех или узла) |
