@@ -56,14 +56,23 @@ export const EdgeList: React.FC<{ nodeId: string }> = ({ nodeId }) => {
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Исходящие:</div>
           <table className="edge-table">
             <thead>
-              <tr><th>→</th><th>Тип</th><th>Метка цели</th><th></th></tr>
+            <tr><th>→</th><th>Тип</th><th>Цель</th><th></th></tr>
             </thead>
             <tbody>
               {edges.outgoing.map((e, i) => (
                 <tr key={`out-${i}`}>
                   <td style={{ color: 'var(--accent)' }}>→ {e.target}</td>
                   <td><span className="edge-relation">{e.relation || '—'}</span></td>
-                  <td>{e.target_label || e.target}</td>
+                  <td>
+                    <span
+                      style={{ cursor: 'pointer', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}
+                      onMouseEnter={(ev) => { ev.currentTarget.style.color = 'var(--accent)'; }}
+                      onMouseLeave={(ev) => { ev.currentTarget.style.color = ''; }}
+                      onClick={() => graph.selectNode(e.target)}
+                    >
+                      {e.target_label || e.target}
+                    </span>
+                  </td>
                   <td>
                     <span className="edge-remove" onClick={() => handleRemoveEdge(e.source, e.target)}>
                       ×
@@ -82,14 +91,23 @@ export const EdgeList: React.FC<{ nodeId: string }> = ({ nodeId }) => {
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, marginTop: 8 }}>Входящие:</div>
           <table className="edge-table">
             <thead>
-              <tr><th>←</th><th>Тип</th><th>Метка источника</th><th></th></tr>
+              <tr><th>←</th><th>Тип</th><th>Источник</th><th></th></tr>
             </thead>
             <tbody>
               {edges.incoming.map((e, i) => (
                 <tr key={`in-${i}`}>
                   <td style={{ color: '#3cb44b' }}>← {e.source}</td>
                   <td><span className="edge-relation">{e.relation || '—'}</span></td>
-                  <td>{e.source_label || e.source}</td>
+                  <td>
+                    <span
+                      style={{ cursor: 'pointer', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}
+                      onMouseEnter={(ev) => { ev.currentTarget.style.color = 'var(--accent)'; }}
+                      onMouseLeave={(ev) => { ev.currentTarget.style.color = ''; }}
+                      onClick={() => graph.selectNode(e.source)}
+                    >
+                      {e.source_label || e.source}
+                    </span>
+                  </td>
                   <td>
                     <span className="edge-remove" onClick={() => handleRemoveEdge(e.source, e.target)}>
                       ×
