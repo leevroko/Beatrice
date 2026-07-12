@@ -110,6 +110,34 @@ beatrice-tui graph.json
 - В CLI: атрибут `--note` у команд `add-node` и `edit-node`
 - В HTML render: ссылка «📝 Конспект» в тултипе узла
 
+### Obsidian CLI: определение хранилища
+
+Obsidian CLI (доступен с v1.12.4+) — официальный CLI, работает как пульт для запущенного Obsidian. Требует включения в настройках Obsidian (Settings → General → Command line interface).
+
+**Проверка установки:**
+```bash
+obsidian version
+```
+
+**Определение хранилища (vault):**
+```bash
+obsidian vault               # имя и метаданные активного хранилища
+obsidian vault info=path     # путь к хранилищу
+obsidian vaults              # список всех известных хранилищ с путями
+obsidian vaults verbose      # список с полными путями
+```
+
+Пример вывода `obsidian vaults`:
+```
+Knowledge    /Users/me/obsidian/knowledge
+Work         /Users/me/obsidian/work
+```
+
+**Применение в Beatrice:**
+- `obsidian vaults` позволяет агенту определить, какой vault соответствует `obsidian://open?vault=...` URI у узла графа
+- Путь к vault нужен для: чтения содержимого заметки (`obsidian read`), верификации существования файла, синхронизации атрибутов между графом и заметкой
+- Obsidian CLI не является зависимостью Beatrice — функционал `note` работает и без него, CLI только расширяет возможности
+
 ## Поиск сирот
 
 Узлы без единой связи (степень 0):
