@@ -78,7 +78,7 @@ export const GraphView: React.FC = () => {
   const [showDir, setShowDir] = useState(true);
   const [showLouvain, setShowLouvain] = useState(false);
   const [hiddenCommunities, setHiddenCommunities] = useState<Set<number>>(new Set());
-  const [tagHighlight, setTagHighlight] = useState('');
+  const [highlightedTags, setHighlightedTags] = useState<Set<string>>(new Set());
   const [tagColor, setTagColor] = useState('#e94560');
   const [showOrphans, setShowOrphans] = useState(true);
   const [graphNoteFilter, setGraphNoteFilter] = useState('');  // '' = все, 'with' = с конспектом, 'without' = без
@@ -395,13 +395,13 @@ export const GraphView: React.FC = () => {
     if (!d3Ref.current) return;
     applyVisualState(d3Ref.current);
     updateLegend();
-  }, [showDir, showLouvain, hiddenCommunities, tagHighlight, tagColor,
+  }, [showDir, showLouvain, hiddenCommunities, highlightedTags, tagColor,
       showOrphans, graphNoteFilter, graph.selectedNodeId]);
 
   // ────── Вспомогательные функции ──────
 
   function getFillColor(d: SimNode): string {
-    if (tagHighlight && d.tags.includes(tagHighlight)) return tagColor;
+    if (highlightedTags.size > 0 && d.tags.some((t) => highlightedTags.has(t))) return tagColor;
     if (showLouvain) return d.communityColor;
     return d.color || '#999';
   }
@@ -572,12 +572,41 @@ export const GraphView: React.FC = () => {
             })}
           </div>
         )}
-        <select value={tagHighlight} onChange={(e) => setTagHighlight(e.target.value)}>
-          <option value="">— Тег —</option>
-          {allTags.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
+         {allTags.length > 0 && (
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center',
+            width: '100%', padding: '4px 0', borderTop: '1px solid var(--border)',
+          }}>
+            <span style={{ fontSize: 11, color: '#888', marginRight: 4 }}>Теги:</span>
+            <button className="btn-sm" onClick={() => setHighlightedTags(new Set())}>
+              Сброс
+            </button>
+            {allTags.map((t) => {
+              const active = highlightedTags.has(t);
+              return (
+                <label key={t} style={{
+                  display: 'flex', alignItems: 'center', gap: 2,
+                  fontSize: 11, cursor: 'pointer',
+                  color: active ? '#eee' : '#666',
+                  background: active ? tagColor + '44' : 'transparent',
+                  padding: '1px 6px', borderRadius: 4,
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={active}
+                    onChange={() => {
+                      const next = new Set(highlightedTags);
+                      if (active) next.delete(t); else next.add(t);
+                      setHighlightedTags(next);
+                    }}
+                    style={{ width: 12, height: 12, accentColor: tagColor }}
+                  />
+                  {t}
+                </label>
+              );
+            })}
+          </div>
+        )}
         <input type="color" value={tagColor}
           onChange={(e) => setTagColor(e.target.value)} />
         <select value={graphNoteFilter} onChange={(e) => setGraphNoteFilter(e.target.value)}
