@@ -1,5 +1,0 @@
-networkx
-
-[tui]
-textual
-rapidfuzz

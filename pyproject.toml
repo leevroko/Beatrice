@@ -21,10 +21,16 @@ tui = [
     "textual",
     "rapidfuzz",
 ]
+web = [
+    "fastapi",
+    "uvicorn[standard]",
+    "websockets",
+]
 
 [project.scripts]
 beatrice = "beatrice.cli:main"
 beatrice-tui = "beatrice.tui.app:run_tui_cli"
+beatrice-web = "beatrice.web_gui.server:run_cli"
 
 [tool.setuptools.packages.find]
 include = ["beatrice*"]

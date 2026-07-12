@@ -8,3 +8,11 @@ __pycache__/
 *.graphml
 *.gexf
 demo_kafka_graph.json
+
+# Web GUI (build artifacts)
+beatrice/web_gui/frontend/node_modules/
+beatrice/web_gui/frontend/dist/
+beatrice/web_gui/frontend/package-lock.json
+
+# Egg info
+*.egg-info/

@@ -44,13 +44,16 @@ git clone <repo_url>
 cd Beatrice
 pip install -e .           # только CLI
 pip install -e ".[tui]"    # CLI + TUI
+pip install -e ".[web]"    # CLI + Web GUI (бета)
+pip install -e ".[tui,web]"  # Всё вместе
 ```
 
-После установки доступны две глобальные команды:
+После установки доступны три глобальные команды:
 - `beatrice` — CLI
 - `beatrice-tui` — TUI
+- `beatrice-web` — Web GUI (FastAPI + React)
 
-**Зависимости:** ядро требует только `networkx`. TUI-режим — `textual` и `rapidfuzz`.
+**Зависимости:** ядро требует только `networkx`. TUI-режим — `textual` и `rapidfuzz`. Web-режим — `fastapi`, `uvicorn`, `websockets`.
 
 ### Создать первый граф
 
@@ -510,6 +513,52 @@ python3 -m pytest tests/ -v
 ```
 
 107 тестов: CLI (86) + TUI (21): load/save, CRUD, history, undo/redo, messages, islands, tags, ring, louvain, set operations, json output, stdin pipe.
+
+---
+
+## Web GUI (бета)
+
+> Интерактивный редактор графов в браузере на React + D3.js + FastAPI WebSocket.
+
+### Установка
+
+```bash
+pip install -e ".[web]"
+cd beatrice/web_gui/frontend && npm install && npm run build
+```
+
+### Запуск
+
+```bash
+beatrice serve graph.json
+```
+
+Открой `http://127.0.0.1:8576` — три панели: список узлов, редактор, D3.js граф.
+
+### Возможности Web GUI
+
+- 🔍 **Поиск и фильтрация** узлов по строке, типу, тегам
+- 📝 **CRUD узлов** — добавление, редактирование (label, type, desc, color, size), удаление
+- 🔗 **CRUD связей** — добавление/удаление с типом связи, выбор узла из списка
+- 🏷️ **CRUD тегов** — добавление/удаление тегов узла, статистика тегов графа
+- 🌐 **Force-directed граф** (D3.js) с зумом, drag, тултипами
+- 🧬 **Louvain-сообщества** — раскраска, фильтр по сообществу, легенда
+- 👻 **Фильтр сирот** — скрыть/показать узлы без связей
+- 🎨 **Подсветка по тегу** — выбор тега + палитра цветов
+- 💾 **Ручное сохранение** (Ctrl+S / кнопка Save)
+- 🔄 **Reload** — перезагрузка с диска
+
+### Режим разработки
+
+```bash
+# Терминал 1: FastAPI сервер
+beatrice serve graph.json --dev
+
+# Терминал 2: Vite HMR
+cd beatrice/web_gui/frontend && npm run dev
+```
+
+Vite dev server на `http://localhost:5173` с HMR, проксирует `/ws` на FastAPI.
 
 ---
 

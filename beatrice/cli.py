@@ -1258,6 +1258,14 @@ def main():
     p_tui.add_argument("graph", help="Путь к JSON-файлу графа")
     p_tui.set_defaults(func=cmd_tui)
 
+    # serve
+    p_serve = sub.add_parser("serve", help="Запустить Web GUI (FastAPI + React)")
+    p_serve.add_argument("graph", help="Путь к JSON-файлу графа")
+    p_serve.add_argument("--host", default="127.0.0.1", help="Хост сервера")
+    p_serve.add_argument("--port", type=int, default=8576, help="Порт сервера")
+    p_serve.add_argument("--dev", action="store_true", help="Режим разработки (CORS для Vite dev server)")
+    p_serve.set_defaults(func=cmd_serve)
+
     # batch
     p_batch = sub.add_parser("batch", help="Пакетное выполнение операций над графом")
     p_batch.add_argument("graph", help="Путь к JSON-файлу графа")
@@ -1316,6 +1324,12 @@ def cmd_tui(args):
     """Запустить TUI для графа."""
     from beatrice.tui.app import run_tui
     run_tui(args.graph)
+
+
+def cmd_serve(args):
+    """Запустить Web GUI (FastAPI + React SPA)."""
+    from beatrice.web_gui.server import run_server
+    run_server(args.graph, host=args.host, port=args.port, dev=args.dev)
 
 
 def cmd_render(args):

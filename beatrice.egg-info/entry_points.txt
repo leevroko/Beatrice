@@ -1,3 +1,0 @@
-[console_scripts]
-beatrice = beatrice.cli:main
-beatrice-tui = beatrice.tui.app:run_tui_cli
