@@ -66,8 +66,8 @@ export const NodeEditorForm: React.FC<{ node: NodeData }> = ({ node }) => {
     <div className="editor-form">
       <div className="field">
         <label>ID
-          <button className="btn-sm" onClick={() => navigator.clipboard.writeText(node.id)}
-            title="Копировать ID" style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px' }}>
+          <button className="btn-sm" onClick={() => navigator.clipboard.writeText(node.label)}
+            title="Копировать название" style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px' }}>
             📋
           </button>
         </label>

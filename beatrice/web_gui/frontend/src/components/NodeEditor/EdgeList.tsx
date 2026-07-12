@@ -62,8 +62,8 @@ export const EdgeList: React.FC<{ nodeId: string }> = ({ nodeId }) => {
               {edges.outgoing.map((e, i) => (
                 <tr key={`out-${i}`}>
                   <td style={{ color: 'var(--accent)' }}>→ {e.target}
-                    <button className="btn-sm" onClick={() => navigator.clipboard.writeText(e.target)}
-                      title="Копировать ID" style={{ fontSize: 10, padding: '1px 4px', marginLeft: 4 }}>
+                    <button className="btn-sm" onClick={() => navigator.clipboard.writeText(e.target_label || e.target)}
+                      title="Копировать название" style={{ fontSize: 10, padding: '1px 4px', marginLeft: 4 }}>
                       📋
                     </button>
                   </td>
@@ -102,8 +102,8 @@ export const EdgeList: React.FC<{ nodeId: string }> = ({ nodeId }) => {
               {edges.incoming.map((e, i) => (
                 <tr key={`in-${i}`}>
                   <td style={{ color: '#3cb44b' }}>← {e.source}
-                    <button className="btn-sm" onClick={() => navigator.clipboard.writeText(e.source)}
-                      title="Копировать ID" style={{ fontSize: 10, padding: '1px 4px', marginLeft: 4 }}>
+                    <button className="btn-sm" onClick={() => navigator.clipboard.writeText(e.source_label || e.source)}
+                      title="Копировать название" style={{ fontSize: 10, padding: '1px 4px', marginLeft: 4 }}>
                       📋
                     </button>
                   </td>
@@ -160,6 +160,7 @@ const AddEdgeDialog: React.FC<{
   const [newNodeId, setNewNodeId] = useState('');
   const [newNodeLabel, setNewNodeLabel] = useState('');
   const [newNodeType, setNewNodeType] = useState('');
+  const [newNodeDesc, setNewNodeDesc] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const otherNodes = Array.from(graph.nodes.values())
@@ -188,6 +189,7 @@ const AddEdgeDialog: React.FC<{
       await graph.addNode(newNodeId.trim(), {
         label: newNodeLabel.trim() || newNodeId.trim(),
         type: newNodeType.trim(),
+        desc: newNodeDesc.trim(),
       });
       if (direction === 'outgoing') {
         await graph.addEdge(nodeId, newNodeId.trim(), relation);
@@ -250,6 +252,8 @@ const AddEdgeDialog: React.FC<{
                 placeholder="Метка (необязательно)" />
               <input value={newNodeType} onChange={(e) => setNewNodeType(e.target.value)}
                 placeholder="Тип (необязательно)" />
+              <input value={newNodeDesc} onChange={(e) => setNewNodeDesc(e.target.value)}
+                placeholder="Описание (необязательно)" />
               <button className="btn-primary btn-sm" onClick={handleCreateAndLink}
                 disabled={!newNodeId.trim()}>
                 Создать и связать
